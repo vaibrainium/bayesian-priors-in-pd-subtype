@@ -20,7 +20,7 @@ categorization:
 
   bradykinesia: ["rigidity_neck", "rigidity_RUE", "rigidity_LUE", "rigidity_RLE", "rigidity_LLE"]
 
-manual_rejection: ["P8", "P14"]
+manual_rejection: ["P8", "P14", "P19", "P4"]
 # MDS-UPDRS items
 
 # For the derivation of the akinetic–rigid motor subphenotype, the akinetic–rigid score was calculated as the average of the items
