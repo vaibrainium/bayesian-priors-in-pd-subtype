@@ -22,6 +22,7 @@ bokeh
 python-dotenv>=0.5.1
 SciencePlots
 omegaconf
+dill
 
 # backwards compatibility
 pathlib2

@@ -12,7 +12,7 @@ RUN apt-get upgrade -y
 RUN apt-add-repository ppa:fish-shell/release-3 -y
 RUN apt update && apt upgrade
 RUN apt install fish -y
-RUN chsh /usr/local/bin/fish
+RUN chsh -s $(which fish)
 
 # install graphviz
 RUN apt-get install graphviz -y

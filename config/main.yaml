@@ -3,9 +3,8 @@ behavior:
   max_lapse_rate: 0.1
 
 categorization:
-  tremor: [
-      # 2.10 tremor,
-      "",
+  tremor:
+    [
       "postural_tremor_R",
       "postural_tremor_L",
       "kinetic_tremor_R",
@@ -18,7 +17,24 @@ categorization:
       "tremor_constancy",
     ]
 
-  bradykinesia: ["rigidity_neck", "rigidity_RUE", "rigidity_LUE", "rigidity_RLE", "rigidity_LLE"]
+  bradykinesia:
+    [
+      "rigidity_neck",
+      "rigidity_RUE",
+      "rigidity_LUE",
+      "rigidity_RLE",
+      "rigidity_LLE",
+      "finger_tap_R",
+      "finger_tap_L",
+      "hand_movements_R",
+      "hand_movements_L",
+      "pron_R",
+      "pron_L",
+      "toe_tapping_R",
+      "toe_tapping_L",
+      "leg_agility_R",
+      "leg_agility_L",
+    ]
 
 manual_rejection: ["P8", "P14", "P19", "P4"]
 # MDS-UPDRS items
