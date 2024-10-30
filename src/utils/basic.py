@@ -96,8 +96,10 @@ def fit_psychometric_function(x_data, y_data, **model_kwargs):
 def get_psychometric_data(data):
     x_data = np.asarray([])
     y_data = np.asarray([])
+    trial_count = np.asarray([])
     for _, coh in enumerate(np.unique(data['signed_coherence'])):
         x_data = np.append(x_data, coh)
+        trial_count = np.append(trial_count, np.sum(data['signed_coherence'] == coh))
         y_data = np.append(y_data, np.sum(data['choice'][data['signed_coherence'] == coh] == 1) / np.sum(data['signed_coherence'] == coh))
     # sorting
     x_data, y_data = zip(*sorted(zip(x_data, y_data)))
@@ -106,7 +108,7 @@ def get_psychometric_data(data):
     x_model = np.linspace(-100, 100, 100)
     model = fit_psychometric_function(x_data, y_data)
     y_model = model.predict(x_model)
-    return np.asarray(x_data), np.asarray(y_data), model, np.asarray(x_model), np.asarray(y_model)
+    return np.asarray(x_data), np.asarray(y_data), model, np.asarray(x_model), np.asarray(y_model), np.asarray(trial_count)
 
 def get_half_psych(data, with_zero=True):
     all_coh = np.sort(np.abs(data['signed_coherence']).unique())

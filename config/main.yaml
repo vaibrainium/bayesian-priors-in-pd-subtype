@@ -1,6 +1,6 @@
 behavior:
-  min_rt: 0.5
-  max_lapse_rate: 0.1
+  min_rt: 0.05
+  max_lapse_rate: 0.4
 
 categorization:
   tremor:
@@ -19,11 +19,6 @@ categorization:
 
   bradykinesia:
     [
-      "rigidity_neck",
-      "rigidity_RUE",
-      "rigidity_LUE",
-      "rigidity_RLE",
-      "rigidity_LLE",
       "finger_tap_R",
       "finger_tap_L",
       "hand_movements_R",
@@ -34,10 +29,23 @@ categorization:
       "toe_tapping_L",
       "leg_agility_R",
       "leg_agility_L",
+      "arising_from_chair",
+      "posture",
+      "global_spontaneity_of_movement",
+      "rigidity_neck",
+      "rigidity_RUE",
+      "rigidity_LUE",
+      "rigidity_RLE",
+      "rigidity_LLE",
+      "gait",
+      "freezing_of_gait",
+      "postural_stability",
     ]
 
-manual_rejection: ["P8", "P14", "P19", "P4"]
-# MDS-UPDRS items
+manual_rejection: ["P8", "P14"] # ["P8", "P14", "P19", "P4"]
 
+# MDS-UPDRS items
+# https://www.nature.com/articles/s41591-024-02886-y
+# https://msig.at/publication/STRASAK/2021.10-FRONT_NEUROL.pdf
 # For the derivation of the akinetic–rigid motor subphenotype, the akinetic–rigid score was calculated as the average of the items
 # of bradykinesia, rigidity and axial symptoms. The ratio of mean tremor-dominant score/mean akinetic–rigid score was then calculated. Subjects were classified as having the ‘akinetic–rigid subphenotype’ if they had a ratio <0.8, ‘tremor-dominant subphenotype’ if they had a ratio ≥1.0 and ‘intermediate’ if they had a ratio between 0.8 and 1.
