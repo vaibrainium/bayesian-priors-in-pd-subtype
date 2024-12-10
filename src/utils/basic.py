@@ -1,4 +1,3 @@
-from datetime import datetime
 from pathlib import Path
 
 import dill
@@ -12,9 +11,10 @@ from src.utils.psychometric_function import PsychometricFunction
 BASE_DIR = Path("/src/")
 
 
-STYLE = BASE_DIR / "src" / "utils" /"dissemination.mplstyle"
+# STYLE = BASE_DIR / "src" / "utils" /"dissemination.mplstyle"
 # style.use(STYLE)
-plt.rcParams.update({"axes.prop_cycle": plt.cycler('color', ['#d11149', '#1a8fe3', '#1ccd6a', '#e6c229', '#6610f2', '#f17105',  '#65e5f3', '#bd8ad5', '#b16b57'])})
+
+# plt.rcParams.update({"axes.prop_cycle": plt.cycler(color=['d11149', '1a8fe3', '1ccd6a', 'e6c229', '6610f2', 'f17105',  '65e5f3', 'bd8ad5', 'b16b57'])})
 
 
 def plot_scatter(xs, ys, **scatter_kwargs):
@@ -43,7 +43,7 @@ def plot_line(xs, ys, **plot_kwargs):
     plt.plot(xs, ys, **plot_kwargs, zorder=31)
     
     
-def plot_errorbar(xs, ys, error_lower, error_upper, colors="C0", error_width=12, alpha=0.3, cap_size=5, cap_thick=3):
+def plot_errorbar(xs, ys, error_lower, error_upper, colors="C0", error_width=12, alpha=0.3):
     if isinstance(colors, str):
         colors = [colors] * len(xs)
 
@@ -56,7 +56,6 @@ def plot_errorbar(xs, ys, error_lower, error_upper, colors="C0", error_width=12,
             ls="none",
             color=colors[ii],
             zorder=1,
-            lw=5, capsize=cap_size, capthick=cap_thick
         )
         plt.setp(bar[0], capstyle="round")
         marker.set_fillstyle("none")
@@ -85,7 +84,7 @@ def plot_x_errorbar(xs, ys, error_lower, error_upper, colors="C0", error_width=1
         
         
 def fit_psychometric_function(x_data, y_data, **model_kwargs):
-    defaults = {"model": "logit_4", "var_lims": (1e-5, 10), "lapse_rate_lims": (1e-5, 0.5), "guess_rate_lims": (1e-5, 0.5)}
+    defaults = {"model": "logit_4", "var_lims": (1e-5, 10), "lapse_rate_lims": (1e-5, 0.2), "guess_rate_lims": (1e-5, 0.2)}
     for k, v in defaults.items():
         val = model_kwargs.get(k, v)
         model_kwargs[k] = val
@@ -93,14 +92,16 @@ def fit_psychometric_function(x_data, y_data, **model_kwargs):
     return model
 
 
-def get_psychometric_data(data):
+def get_psychometric_data(data, positive_direction='right'):
     x_data = np.asarray([])
     y_data = np.asarray([])
-    trial_count = np.asarray([])
     for _, coh in enumerate(np.unique(data['signed_coherence'])):
-        x_data = np.append(x_data, coh)
-        trial_count = np.append(trial_count, np.sum(data['signed_coherence'] == coh))
-        y_data = np.append(y_data, np.sum(data['choice'][data['signed_coherence'] == coh] == 1) / np.sum(data['signed_coherence'] == coh))
+        if positive_direction == 'right':
+            x_data = np.append(x_data, coh)
+            y_data = np.append(y_data, np.sum(data['choice'][data['signed_coherence'] == coh] == 1) / np.sum(data['signed_coherence'] == coh))
+        elif positive_direction == 'left':
+            x_data = np.append(x_data, -coh)
+            y_data = np.append(y_data, np.sum(data['choice'][data['signed_coherence'] == coh] == -1) / np.sum(data['signed_coherence'] == coh))
     # sorting
     x_data, y_data = zip(*sorted(zip(x_data, y_data)))
     
@@ -108,38 +109,21 @@ def get_psychometric_data(data):
     x_model = np.linspace(-100, 100, 100)
     model = fit_psychometric_function(x_data, y_data)
     y_model = model.predict(x_model)
-    return np.asarray(x_data), np.asarray(y_data), model, np.asarray(x_model), np.asarray(y_model), np.asarray(trial_count)
+    return np.asarray(x_data), np.asarray(y_data), model, np.asarray(x_model), np.asarray(y_model)
 
-def get_half_psych(data, with_zero=True):
-    all_coh = np.sort(np.abs(data['signed_coherence']).unique())
-    coherences, ipsi_choices, contra_choices = [], [], []
-    for coh in all_coh:
-        if coh == 0 and with_zero == False:
-            pass
-        else:
-            coherences.append(coh)
-            ipsi_choices.append(np.sum(data['choice'][data['signed_coherence'] == coh] == 1) / np.sum(data['signed_coherence'] == coh))
-            contra_choices.append(np.sum(data['choice'][data['signed_coherence'] == -coh] == -1) / np.sum(data['signed_coherence'] == -coh))
 
-    # fit psychometric function
-    x_model = np.linspace(0, 100, 100)
-    ipsi_model = fit_psychometric_function(coherences, ipsi_choices, lapse_rate_lims= (1e-5, 0.55), guess_rate_lims=(1e-5, 0.55))
-    ipsi_model = fit_psychometric_function(coherences, ipsi_choices)
-    ipsi_hat = ipsi_model.predict(x_model)
-    contra_model = fit_psychometric_function(coherences, contra_choices, lapse_rate_lims= (1e-5, 0.55), guess_rate_lims=(1e-5, 0.55))
-    contra_model = fit_psychometric_function(coherences, contra_choices)
-    contra_hat = contra_model.predict(x_model)
-
-    return coherences, ipsi_choices, contra_choices, x_model, ipsi_hat, ipsi_model, contra_hat, contra_model
-
-def get_chronometric_data(data):
+def get_chronometric_data(data, positive_direction='right'):
     coherences = np.asarray([])
     chrono = np.asarray([])
     for _, coh in enumerate(np.unique(data['signed_coherence'])):
-        coherences = np.append(coherences, coh)
-        chrono = np.append(chrono, np.mean(data['reaction_time'][(data['signed_coherence'] == coh) & (data['outcome'] == 1)]))
+        if positive_direction == 'right':
+            coherences = np.append(coherences, coh)
+            chrono = np.append(chrono, np.mean(data['response_time'][(data['signed_coherence'] == coh) & (data['outcome'] == 1)]))
+        elif positive_direction == 'letf':
+            coherences = np.append(coherences, -coh)
+            chrono = np.append(chrono, np.mean(data['response_time'][(data['signed_coherence'] == coh) & (data['outcome'] == 1)]))
             
-    # # sort coherences and chrono by coherence
+    # sort coherences and chrono by coherence
     coherences, chrono = zip(*sorted(zip(coherences, chrono)))
     return coherences, chrono
 
@@ -156,14 +140,3 @@ def load_model(name: str, dir: str = BASE_DIR / "src" / "models/"):
     with open(file, "rb") as f:
         model = dill.load(f)
     return model
-
-
-def parse_datetime_to_seconds(datetime_str):
-    dt = datetime.strptime(datetime_str, '%H:%M:%S.%f')
-    timestamp_in_seconds = (
-        dt.hour * 3600 +
-        dt.minute * 60 +
-        dt.second +
-        dt.microsecond / 1e6
-    )
-    return timestamp_in_seconds
