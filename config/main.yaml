@@ -18,8 +18,13 @@ categorization:
       "tremor_consistency",
     ]
 
-  bradykinesia:
-    [
+  bradykinesia: [
+      # Adapted from https://www.sciencedirect.com/science/article/pii/S2590112523000051#s0015
+      "rigidity_neck",
+      "rigidity_RUE",
+      "rigidity_LUE",
+      "rigidity_RLE",
+      "rigidity_LLE",
       "finger_tap_R",
       "finger_tap_L",
       "hand_movements_R",
@@ -30,18 +35,69 @@ categorization:
       "toe_tapping_L",
       "leg_agility_R",
       "leg_agility_L",
-      "arising_from_chair",
-      "posture",
       "global_spontaneity_of_movement",
-      "rigidity_neck",
-      "rigidity_RUE",
-      "rigidity_LUE",
-      "rigidity_RLE",
-      "rigidity_LLE",
-      "gait",
-      "freezing_of_gait",
-      "postural_stability",
     ]
+
+  # bradykinesia:
+  #   [
+  #     "finger_tap_R",
+  #     "finger_tap_L",
+  #     "hand_movements_R",
+  #     "hand_movements_L",
+  #     "pron_R",
+  #     "pron_L",
+  #     "toe_tapping_R",
+  #     "toe_tapping_L",
+  #     "leg_agility_R",
+  #     "leg_agility_L",
+  #     "arising_from_chair",
+  #     "posture",
+  #     "global_spontaneity_of_movement",
+  #     "rigidity_neck",
+  #     "rigidity_RUE",
+  #     "rigidity_LUE",
+  #     "rigidity_RLE",
+  #     "rigidity_LLE",
+  #     "gait",
+  #     "freezing_of_gait",
+  #     "postural_stability",
+  #   ]
+
+# # https://www.sciencedirect.com/science/article/pii/S2590112523000051#s0015
+# # AR score
+# 3.2. Facial expression
+# 3.3a. Rigidity-Neck
+# 3.3b. Rigidity-RUE
+# 3.3c. Rigidity-LUE
+# 3.3d. Rigidity-RLE
+# 3.3e. Rigidity-LLE
+# 3.4a. Finger tapping-RUE
+# 3.4b. Finger tapping-LUE
+# 3.6a. Pronation-supination-RUE
+# 3.6b. Pronation-supination-LUE
+# 3.7a. Toe tapping-Right
+# 3.7b. Toe tapping-Left
+# 3.8a. Leg agility-Right
+# 3.8b. Leg agility-Left
+# 3.14. Global spontaneity of movement
+
+# # https://www.nature.com/articles/s41531-021-00192-9#Sec9
+# # AR score
+# "rigidity_neck",
+# "rigidity_RUE",
+# "rigidity_LUE",
+# "rigidity_RLE",
+# "rigidity_LLE",
+# "finger_tap_R",
+# "finger_tap_L",
+# "hand_movements_R",
+# "hand_movements_L",
+# "pron_R",
+# "pron_L",
+# "leg_agility_R",
+# "leg_agility_L",
+# "arising_from_chair",
+# "global_spontaneity_of_movement",
 
 # pigd: []
 
@@ -54,3 +110,4 @@ manual_rejection: ["P8", "P14"] # ["P8", "P14", "P19", "P4"]
 # of bradykinesia, rigidity and axial symptoms. The ratio of mean tremor-dominant score/mean akinetic–rigid score was then calculated. Subjects were classified as having the ‘akinetic–rigid subphenotype’ if they had a ratio <0.8, ‘tremor-dominant subphenotype’ if they had a ratio ≥1.0 and ‘intermediate’ if they had a ratio between 0.8 and 1.
 
 # https://movementdisorders.onlinelibrary.wiley.com/doi/10.1002/mds.25383
+# https://www.sciencedirect.com/science/article/pii/S2590112523000051#s0015
