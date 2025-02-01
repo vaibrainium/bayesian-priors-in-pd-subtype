@@ -5,8 +5,8 @@ from mpl_toolkits.mplot3d import Axes3D
 from pathlib import Path
 import numpy as np
 
-BASE_DIR = Path("/src/")
-STYLE = BASE_DIR / "src" / "utils" / "dissemination.mplstyle"
+BASE_DIR = Path(__file__).parent()
+STYLE = BASE_DIR / "dissemination.mplstyle"
 matplotlib.style.use(STYLE)
 
 # Constants
