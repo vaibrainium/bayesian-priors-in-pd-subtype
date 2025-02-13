@@ -29,6 +29,8 @@ python-pptx
 # backwards compatibility
 pathlib2
 wheel
+cython
+git+https://github.com/vaibrainium/ssm.git
 
 # Project specific requirements
 blackjax
