@@ -6,7 +6,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib import style
 
-# from src.utils.psychometric_function import PsychometricFunction
+BASE_DIR = Path(__file__).parent
 
 def save_model(model: dict, name: str, dir: str = BASE_DIR / "src" / "models/"):    
     # print(dir.resolve().exists())

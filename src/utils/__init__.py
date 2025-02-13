@@ -17,6 +17,7 @@ class pmf_utils:
         fit_psychometric_function,
         get_psychometric_data,
         get_chronometric_data,
+        get_accuracy_data,
     )
 
 # Create a limited interface for glm_hmm_utils

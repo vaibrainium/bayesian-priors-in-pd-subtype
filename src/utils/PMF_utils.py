@@ -203,3 +203,19 @@ def get_chronometric_data(data, positive_direction='right'):
     # sort coherences and chrono by coherence
     coherences, chrono = zip(*sorted(zip(coherences, chrono)))
     return coherences, chrono
+
+
+def get_accuracy_data(data, positive_direction="right"):
+    coherences = np.asarray([])
+    accuracy = np.asarray([])
+    for _, coh in enumerate(np.unique(data["signed_coherence"])):
+        if positive_direction == "right":
+            coherences = np.append(coherences, coh)
+            accuracy = np.append(accuracy, np.sum(data["outcome"][data["signed_coherence"] == coh] == 1) / np.sum(data["signed_coherence"] == coh))
+        elif positive_direction == "left":
+            coherences = np.append(coherences, -coh)
+            accuracy = np.append(accuracy, np.sum(data["outcome"][data["signed_coherence"] == coh] == 1) / np.sum(data["signed_coherence"] == coh))
+
+    # sort coherences and chrono by coherence
+    coherences, accuracy = zip(*sorted(zip(coherences, accuracy)))
+    return np.array(coherences), np.array(accuracy)
