@@ -1,42 +1,44 @@
-behavior:
+BEHAVIOR:
+  min_easy_accuracy: .6
   min_rt: 0.05
   max_lapse_rate: 0.4
 
-categorization:
-  tremor:
-    [
-      "tremor_2_10",
-      "posture_tremor_R",
-      "posture_tremor_L",
-      "kinetic_tremor_R",
-      "kinetic_tremor_L",
-      "rest_tremor_amplitute_RUE",
-      "rest_tremor_amplitute_LUE",
-      "rest_tremor_amplitute_RLE",
-      "rest_tremor_amplitute_LLE",
-      "rest_tremor_amplitute_Lip",
-      "tremor_consistency",
-    ]
 
-  bradykinesia: [
-      # Adapted from https://www.sciencedirect.com/science/article/pii/S2590112523000051#s0015
-      "rigidity_neck",
-      "rigidity_RUE",
-      "rigidity_LUE",
-      "rigidity_RLE",
-      "rigidity_LLE",
-      "finger_tap_R",
-      "finger_tap_L",
-      "hand_movements_R",
-      "hand_movements_L",
-      "pron_R",
-      "pron_L",
-      "toe_tapping_R",
-      "toe_tapping_L",
-      "leg_agility_R",
-      "leg_agility_L",
-      "global_spontaneity_of_movement",
-    ]
+MDS_UPDRS:
+  UPDRS_ITEMS : []
+
+  # Adapted from https://www.sciencedirect.com/science/article/pii/S2590112523000051#s0015
+  TREMOR_ITEMS : [
+      "210_Tremor",
+      "315a_Postural_Tremor_RUE",
+      "315a_Postural_Tremor_LUE",
+      "316a_Kinetic_Tremor_RUE",
+      "316a_Kinetic_Tremor_LUE",
+      "317a_Rest_Tremor_Amplitude_RUE",
+      "317b_Rest_Tremor_Amplitude_LUE",
+      "317c_Rest_Tremor_Amplitude_RLE",
+      "317d_Rest_Tremor_Amplitude_LLE",
+      "317e_Rest_Tremor_Amplitude_LipJaw",
+      "318_Constancy_of_Rest_Tremor"
+  ]
+  BRADYKINESIA_ITEMS : [
+      "303a_Rigidity_Neck",
+      "303b_Rigidity_RUE",
+      "303c_Rigidity_LUE",
+      "303d_Rigidity_RLE",
+      "303e_Rigidity_LLE",
+      "304a_Finger_Tapping_RUE",
+      "304b_Finger_Tapping_LUE",
+      "305a_Hand_Movements_RUE",
+      "305b_Hand_Movements_LUE",
+      "306a_Pronation_Supination_RUE",
+      "306b_Pronation_Supination_LUE",
+      "307a_Toe_Tapping_RLE",
+      "307b_Toe_Tapping_LLE",
+      "308a_Leg_Agility_RLE",
+      "308b_Leg_Agility_LLE",
+      "314_Global_Spontaneity_of_Movement"
+  ]
 
   # bradykinesia:
   #   [
