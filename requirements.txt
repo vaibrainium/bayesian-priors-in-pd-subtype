@@ -37,3 +37,4 @@ blackjax
 ipywidgets
 # cupy
 KDEpy
+hdf5storage
