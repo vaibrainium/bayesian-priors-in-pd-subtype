@@ -1,4 +1,4 @@
 data:
-  raw: "/mnt/data/raw"
-  processed: "/mnt/data/processed"
-  final: "/mnt/data/final"
+  raw: "/mnt/pd-data/raw"
+  processed: "/mnt/pd-data/processed"
+  final: "/mnt/pd-data/final"

@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.preprocessing import StandardScaler
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -20,7 +21,7 @@ class PsychometricFunction(BaseEstimator, RegressorMixin):
 
     def __init__(
         self,
-        model="logit_3",
+        model="logit_4",
         mean_lims=(-100, 100),
         var_lims=(1e-5, 30),
         lapse_rate_lims=(0, 0.1),
@@ -36,12 +37,15 @@ class PsychometricFunction(BaseEstimator, RegressorMixin):
             raise ValueError(f"Unknown model: {model}. Choose 'logit_2', 'logit_3' or 'logit_4'.")
 
     def logit_2(self, x, mean, var):
+        """Logistic function with only mean and variance."""
         return 1 / (1 + np.exp(-var * (x - mean)))
 
     def logit_3(self, x, mean, var, lapse_rate):
+        """Logistic function with lapse rate."""
         return lapse_rate + ((1 - 2 * lapse_rate) / (1 + np.exp(-var * (x - mean))))
 
     def logit_4(self, x, mean, var, lapse_rate, guess_rate):
+        """Logistic function with lapse and guess rates."""
         return lapse_rate + ((1 - guess_rate - lapse_rate) / (1 + np.exp(-var * (x - mean))))
 
     def fit(self, x, y, trial_counts=None):
@@ -64,7 +68,7 @@ class PsychometricFunction(BaseEstimator, RegressorMixin):
             param_lims = [self.mean_lims, self.var_lims, self.lapse_rate_lims, self.guess_rate_lims]
 
         bounds = list(zip(*param_lims))
-        initial_guess = [np.mean(lim) for lim in param_lims]
+        initial_guess = [np.min(lim) for lim in param_lims]
 
         # Compute weights: More trials → Higher weight
         if trial_counts is not None:
@@ -77,10 +81,9 @@ class PsychometricFunction(BaseEstimator, RegressorMixin):
         popt, pcov = curve_fit(
             self._fit_func, x, y, p0=initial_guess, bounds=bounds, sigma=sigma, absolute_sigma=False
         )
-
         # Store results
         self.coefs_ = {"mean": popt[0], "var": popt[1]}
-        if self.model == "logit_3":
+        if self.model == "logit_3" or self.model == "logit_4":
             self.coefs_["lapse_rate"] = popt[2]
         if self.model == "logit_4":
             self.coefs_["guess_rate"] = popt[3]
@@ -92,19 +95,20 @@ class PsychometricFunction(BaseEstimator, RegressorMixin):
         """Predict using the fitted model."""
         return self._fit_func(x, **self.coefs_)
 
-def fit_psychometric_function(x_data, y_data, **kwargs):
+def fit_psychometric_function(x_data, y_data, trial_counts, model_type, **kwargs):
     """Fit psychometric function with user-defined or default parameters."""
     params = {
-        "model": "logit_4",
-        "var_lims": (1e-5, 10),
+        "model": model_type,
+        "mean_lims": (-100, 100),
+        "var_lims": (1e-5, 30),
         "lapse_rate_lims": (1e-5, 0.2),
         "guess_rate_lims": (1e-5, 0.2),
         **kwargs,  # Override defaults with user input
     }
-    return PsychometricFunction(**params).fit(x_data, y_data)
+    return PsychometricFunction(**params).fit(x_data, y_data, trial_counts)
 
 
-def get_psychometric_data(data, positive_direction="right", fit=True, model_type="logit_4"):
+def get_psychometric_data(data, positive_direction="right", fit=True, model_type="logit_4", **kwargs):
     """Extracts psychometric data and optionally fits a model."""
     unique_coh = np.unique(data["signed_coherence"])
     x_data = np.where(positive_direction == "left", -unique_coh, unique_coh)
@@ -127,7 +131,7 @@ def get_psychometric_data(data, positive_direction="right", fit=True, model_type
     if not fit:
         return x_data, y_data
     # Fit the model using the specified model_type (logit_2, logit_3, logit_4)
-    model = fit_psychometric_function(x_data, y_data, trial_counts=trial_counts, model=model_type)
+    model = fit_psychometric_function(x_data, y_data, trial_counts=trial_counts, model_type=model_type, **kwargs)
     x_model = np.linspace(min(x_data), max(x_data), 100)
     y_model = model.predict(x_model)
 

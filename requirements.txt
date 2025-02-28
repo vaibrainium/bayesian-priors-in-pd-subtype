@@ -31,6 +31,7 @@ pathlib2
 wheel
 cython
 git+https://github.com/vaibrainium/ssm.git
+git+https://github.com/lnccbrown/HSSM.git
 
 # Project specific requirements
 blackjax
