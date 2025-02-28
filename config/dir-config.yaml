@@ -1,0 +1,4 @@
+data:
+  raw: "/mnt/data/raw"
+  processed: "/mnt/data/processed"
+  final: "/mnt/data/final"
