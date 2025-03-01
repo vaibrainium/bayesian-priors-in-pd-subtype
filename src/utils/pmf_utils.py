@@ -153,7 +153,7 @@ def get_chronometric_data(data, positive_direction="right"):
         rt_mean.append(np.mean(trials["response_time"]))
         rt_sd.append(np.std(trials["response_time"]))
 
-    return map(np.array, sorted(zip(coherences, rt_median, rt_mean, rt_sd)))
+    return map(np.array, zip(*sorted(zip(coherences, rt_median, rt_mean, rt_sd))))
 
 
 def get_accuracy_data(data, positive_direction="right"):
@@ -164,4 +164,4 @@ def get_accuracy_data(data, positive_direction="right"):
         np.mean(data["outcome"][data["signed_coherence"] == coh] == 1) for coh in unique_coh
     ])
 
-    return map(np.array, sorted(zip(coherences, accuracy)))
+    return map(np.array, zip(*sorted(zip(coherences, accuracy))))
