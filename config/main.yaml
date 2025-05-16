@@ -1,12 +1,11 @@
 BEHAVIOR:
   min_easy_accuracy: .6
-  min_rt: 0.05
+  min_rt: 0.1
   max_lapse_rate: 0.4
-
+  data_slice: 0 # 0: full data, 1: 1st half data, 2: 2nd half data
 
 # low MoCA scores <= 26
 moca_rejection: ["P2", "P5", "P8", "P10", "P14", "P15", "P16", "P21"]
-
 
 MDS_UPDRS:
   UPDRS_ITEMS : ['301_Speech', '302_Facial_Expression', '303a_Rigidity_Neck', '303b_Rigidity_RUE', '303c_Rigidity_LUE', '303d_Rigidity_RLE',
@@ -18,6 +17,7 @@ MDS_UPDRS:
                 '317d_Rest_Tremor_Amplitude_LLE', '317e_Rest_Tremor_Amplitude_Lip_Jaw', '318_Constancy_of_Rest_Tremor']
 
   # Adapted from https://www.sciencedirect.com/science/article/pii/S2590112523000051#s0015
+  # https://www.nature.com/articles/s41531-021-00192-9#Sec9
   TREMOR_ITEMS : [
       "210_Tremor",
       "315a_Postural_Tremor_RUE",
@@ -97,6 +97,8 @@ MDS_UPDRS:
 # 3.14. Global spontaneity of movement
 
 # # https://www.nature.com/articles/s41531-021-00192-9#Sec9
+#  UPDRS-III response to levodopa was calculated as ((Off-score – On-score)/Off-score × 100%).
+
 # # AR score
 # "rigidity_neck",
 # "rigidity_RUE",
@@ -124,3 +126,9 @@ MDS_UPDRS:
 
 # https://movementdisorders.onlinelibrary.wiley.com/doi/10.1002/mds.25383
 # https://www.sciencedirect.com/science/article/pii/S2590112523000051#s0015
+
+
+
+#PIGD
+# the mean PIGD score (MDS-UPDRS 2.12–2.13, and 3.10–3.12) - https://www.nature.com/articles/s41531-021-00192-9#Sec9
+# PIGD score was defined as sum of an individual’s baseline falling, walking, freezing, gait and postural stability scores (3.11 and 3.12)
