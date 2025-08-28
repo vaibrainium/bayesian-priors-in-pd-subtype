@@ -36,6 +36,5 @@ git+https://github.com/lnccbrown/HSSM.git
 # Project specific requirements
 blackjax
 ipywidgets
-# cupy
 KDEpy
 hdf5storage

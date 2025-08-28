@@ -8,30 +8,10 @@ BEHAVIOR:
 moca_rejection: ["P2", "P5", "P8", "P10", "P14", "P15", "P16", "P21"]
 
 MDS_UPDRS:
-  UPDRS_ITEMS: ['301_Speech', '302_Facial_Expression', '303a_Rigidity_Neck', '303b_Rigidity_RUE', '303c_Rigidity_LUE', '303d_Rigidity_RLE',
-                '303e_Rigidity_LLE', '304a_Finger_Tapping_RUE', '304b_Finger_Tapping_LUE', '305a_Hand_Movements_RUE', '305b_Hand_Movements_LUE',
-                '306a_Pronation_Supination_Movements_RUE', '306b_Pronation_Supination_Movements_LUE', '307a_Toe_Tapping_RLE', '307b_Toe_Tapping_LLE',
-                '308a_Leg_Agility_RLE', '308b_Leg_Agility_LLE', '309_Arising_from_Chair', '310_Gait', '311_Freezing_of_Gait', '312_Postural_Stability',
-                '313_Posture', '314_Global_Spontaneity_of_Movement', '315a_Postural_Tremor_RUE', '315b_Postural_Tremor_LUE', '316a_Kinetic_Tremor_RUE',
-                '316b_Kinetic_Tremor_LUE', '317a_Rest_Tremor_Amplitude_RUE', '317b_Rest_Tremor_Amplitude_LUE', '317c_Rest_Tremor_Amplitude_RLE',
-                '317d_Rest_Tremor_Amplitude_LLE', '317e_Rest_Tremor_Amplitude_Lip_Jaw', '318_Constancy_of_Rest_Tremor']
-
-  # Adapted from https://www.sciencedirect.com/science/article/pii/S2590112523000051#s0015
-  # https://www.nature.com/articles/s41531-021-00192-9#Sec9
-  TREMOR_ITEMS: [
-      "210_Tremor",
-      "315a_Postural_Tremor_RUE",
-      "315b_Postural_Tremor_LUE",
-      "316a_Kinetic_Tremor_RUE",
-      "316b_Kinetic_Tremor_LUE",
-      "317a_Rest_Tremor_Amplitude_RUE",
-      "317b_Rest_Tremor_Amplitude_LUE",
-      "317c_Rest_Tremor_Amplitude_RLE",
-      "317d_Rest_Tremor_Amplitude_LLE",
-      "317e_Rest_Tremor_Amplitude_Lip_Jaw",
-      "318_Constancy_of_Rest_Tremor"
-  ]
-  BRADYKINESIA_ITEMS: [
+  UPDRS_ITEMS:
+    [
+      "301_Speech",
+      "302_Facial_Expression",
       "303a_Rigidity_Neck",
       "303b_Rigidity_RUE",
       "303c_Rigidity_LUE",
@@ -47,33 +27,76 @@ MDS_UPDRS:
       "307b_Toe_Tapping_LLE",
       "308a_Leg_Agility_RLE",
       "308b_Leg_Agility_LLE",
-      "314_Global_Spontaneity_of_Movement"
-  ]
+      "309_Arising_from_Chair",
+      "310_Gait",
+      "311_Freezing_of_Gait",
+      "312_Postural_Stability",
+      "313_Posture",
+      "314_Global_Spontaneity_of_Movement",
+      "315a_Postural_Tremor_RUE",
+      "315b_Postural_Tremor_LUE",
+      "316a_Kinetic_Tremor_RUE",
+      "316b_Kinetic_Tremor_LUE",
+      "317a_Rest_Tremor_Amplitude_RUE",
+      "317b_Rest_Tremor_Amplitude_LUE",
+      "317c_Rest_Tremor_Amplitude_RLE",
+      "317d_Rest_Tremor_Amplitude_LLE",
+      "317e_Rest_Tremor_Amplitude_Lip_Jaw",
+      "318_Constancy_of_Rest_Tremor",
+    ]
+
+  # Adapted from https://www.sciencedirect.com/science/article/pii/S2590112523000051#s0015
+  # https://www.nature.com/articles/s41531-021-00192-9#Sec9
+  TREMOR_ITEMS:
+    [
+      "210_Tremor",
+      "315a_Postural_Tremor_RUE",
+      "315b_Postural_Tremor_LUE",
+      "316a_Kinetic_Tremor_RUE",
+      "316b_Kinetic_Tremor_LUE",
+      "317a_Rest_Tremor_Amplitude_RUE",
+      "317b_Rest_Tremor_Amplitude_LUE",
+      "317c_Rest_Tremor_Amplitude_RLE",
+      "317d_Rest_Tremor_Amplitude_LLE",
+      "317e_Rest_Tremor_Amplitude_Lip_Jaw",
+      "318_Constancy_of_Rest_Tremor",
+    ]
+
+  BRADYKINESIA_ITEMS:
+    [
+      "303a_Rigidity_Neck",
+      "303b_Rigidity_RUE",
+      "303c_Rigidity_LUE",
+      "303d_Rigidity_RLE",
+      "303e_Rigidity_LLE",
+      "304a_Finger_Tapping_RUE",
+      "304b_Finger_Tapping_LUE",
+      "305a_Hand_Movements_RUE",
+      "305b_Hand_Movements_LUE",
+      "306a_Pronation_Supination_Movements_RUE",
+      "306b_Pronation_Supination_Movements_LUE",
+      "307a_Toe_Tapping_RLE",
+      "307b_Toe_Tapping_LLE",
+      "308a_Leg_Agility_RLE",
+      "308b_Leg_Agility_LLE",
+      "314_Global_Spontaneity_of_Movement",
+    ]
 
   # https://www.nature.com/articles/s41531-021-00192-9#Sec9
-  PIGD_ITEMS: [
-    "212_Balance",
-    "213_Freezing",
-    "310_Gait",
-    "311_Freezing_of_Gait",
-    "312_Postural_Stability"
-  ]
+  PIGD_ITEMS:
+    [
+      "212_Balance",
+      "213_Freezing",
+      "310_Gait",
+      "311_Freezing_of_Gait",
+      "312_Postural_Stability",
+    ]
 
   TREM_VS_PIDG:
-    {
-      pigd: [0,0.9],
-      intermediate: [0.9,1.15],
-      tremor: [1.15,10]
-    }
+    { pigd: [0, 0.9], intermediate: [0.9, 1.15], tremor: [1.15, 10] }
 
   TREM_VS_BRADY:
-    {
-      bradykinetic: [0,0.8],
-      intermediate: [0.8,1],
-      tremor: [1,10]
-    }
-
-
+    { bradykinetic: [0, 0.8], intermediate: [0.8, 1], tremor: [1, 10] }
 
   # bradykinesia:
   #   [
@@ -99,7 +122,6 @@ MDS_UPDRS:
   #     "freezing_of_gait",
   #     "postural_stability",
   #   ]
-
 # # https://www.sciencedirect.com/science/article/pii/S2590112523000051#s0015
 # # AR score
 # 3.2. Facial expression
@@ -138,8 +160,6 @@ MDS_UPDRS:
 # "arising_from_chair",
 # "global_spontaneity_of_movement",
 
-
-
 # MDS-UPDRS items
 # https://www.nature.com/articles/s41591-024-02886-y
 # https://msig.at/publication/STRASAK/2021.10-FRONT_NEUROL.pdf
@@ -148,8 +168,6 @@ MDS_UPDRS:
 
 # https://movementdisorders.onlinelibrary.wiley.com/doi/10.1002/mds.25383
 # https://www.sciencedirect.com/science/article/pii/S2590112523000051#s0015
-
-
 
 #PIGD
 # the mean PIGD score (MDS-UPDRS 2.12–2.13, and 3.10–3.12) - https://www.nature.com/articles/s41531-021-00192-9#Sec9
