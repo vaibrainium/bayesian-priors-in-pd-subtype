@@ -174,11 +174,11 @@ MDS_UPDRS:
 # PIGD score was defined as sum of an individual’s baseline falling, walking, freezing, gait and postural stability scores (3.11 and 3.12)
 
 GLM_HMM:
-  name: "with_bias_1_back_prev_choice_coherence"
+  name: "with_bias_no_color_1_back_prev_choice_coherence"
   observed_dimensions: 1
   n_categories: 2
   add_bias: true
-  current_trial_features: ["normalized_stimulus", "color"]
+  current_trial_features: ["normalized_stimulus"]
   prev_trial_features:
     ["prev_choice", "prev_coherence", "prev_choice_coherence"]
   n_trials_back: 1
