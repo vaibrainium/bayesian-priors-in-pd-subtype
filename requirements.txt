@@ -11,9 +11,9 @@ mypy
 nbstripout
 pyyaml
 pandas
-numpy
-scipy
-scikit-learn
+numpy>=1.2
+scipy>=1.8
+scikit-learn>=1.6
 numba
 statsmodels
 matplotlib
@@ -31,7 +31,6 @@ pathlib2
 wheel
 cython
 git+https://github.com/vaibrainium/ssm.git
-git+https://github.com/lnccbrown/HSSM.git
 
 # Project specific requirements
 blackjax

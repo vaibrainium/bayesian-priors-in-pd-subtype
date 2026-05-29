@@ -1,4 +1,5 @@
 data:
   raw: "/mnt/pd-data/raw"
+  compiled: "/mnt/pd-data/compiled"
   processed: "/mnt/pd-data/processed"
   final: "/mnt/pd-data/final"

@@ -1,11 +1,16 @@
 BEHAVIOR:
   min_easy_accuracy: .6
   min_rt: 0.1
+  psych_model: "logit_4"
   max_lapse_rate: 0.4
   data_slice: 0 # 0: full data, 1: 1st half data, 2: 2nd half data
 
 # low MoCA scores <= 26
 moca_rejection: ["P2", "P5", "P8", "P10", "P14", "P15", "P16", "P21"]
+
+EXPERIMENT_SITE:
+  ucla: ["CG", "COH", "MBY", "DP", "FUR", "LBR", "MAR", "SMI", "PAM", "RW", "BBK", "BER", "DCAM", "ALE", "DMO", "AJL", "SKU"]
+  case_western: ["RBA", "RDE", "SGA", "LHO", "RSH", "RZA", "SNO"]
 
 MDS_UPDRS:
   UPDRS_ITEMS:
@@ -98,67 +103,6 @@ MDS_UPDRS:
   TREM_VS_BRADY:
     { bradykinetic: [0, 0.8], intermediate: [0.8, 1], tremor: [1, 10] }
 
-  # bradykinesia:
-  #   [
-  #     "finger_tap_R",
-  #     "finger_tap_L",
-  #     "hand_movements_R",
-  #     "hand_movements_L",
-  #     "pron_R",
-  #     "pron_L",
-  #     "toe_tapping_R",
-  #     "toe_tapping_L",
-  #     "leg_agility_R",
-  #     "leg_agility_L",
-  #     "arising_from_chair",
-  #     "posture",
-  #     "global_spontaneity_of_movement",
-  #     "rigidity_neck",
-  #     "rigidity_RUE",
-  #     "rigidity_LUE",
-  #     "rigidity_RLE",
-  #     "rigidity_LLE",
-  #     "gait",
-  #     "freezing_of_gait",
-  #     "postural_stability",
-  #   ]
-# # https://www.sciencedirect.com/science/article/pii/S2590112523000051#s0015
-# # AR score
-# 3.2. Facial expression
-# 3.3a. Rigidity-Neck
-# 3.3b. Rigidity-RUE
-# 3.3c. Rigidity-LUE
-# 3.3d. Rigidity-RLE
-# 3.3e. Rigidity-LLE
-# 3.4a. Finger tapping-RUE
-# 3.4b. Finger tapping-LUE
-# 3.6a. Pronation-supination-RUE
-# 3.6b. Pronation-supination-LUE
-# 3.7a. Toe tapping-Right
-# 3.7b. Toe tapping-Left
-# 3.8a. Leg agility-Right
-# 3.8b. Leg agility-Left
-# 3.14. Global spontaneity of movement
-
-# # https://www.nature.com/articles/s41531-021-00192-9#Sec9
-#  UPDRS-III response to levodopa was calculated as ((Off-score – On-score)/Off-score × 100%).
-
-# # AR score
-# "rigidity_neck",
-# "rigidity_RUE",
-# "rigidity_LUE",
-# "rigidity_RLE",
-# "rigidity_LLE",
-# "finger_tap_R",
-# "finger_tap_L",
-# "hand_movements_R",
-# "hand_movements_L",
-# "pron_R",
-# "pron_L",
-# "leg_agility_R",
-# "leg_agility_L",
-# "arising_from_chair",
-# "global_spontaneity_of_movement",
 
 # MDS-UPDRS items
 # https://www.nature.com/articles/s41591-024-02886-y

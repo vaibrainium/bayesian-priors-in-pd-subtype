@@ -16,10 +16,8 @@ RUN chsh -s $(which fish)
 
 # install graphviz
 RUN apt-get install graphviz -y
-
-RUN pip3 install git+https://github.com/lnccbrown/HSSM.git
 RUN pip3 install -e /src/.
-RUN pip3 install -r /src/requirements.txt  
+RUN pip3 install -r /src/requirements.txt
 
 
 # RUN pip3 install -U "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
