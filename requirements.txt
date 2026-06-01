@@ -37,3 +37,4 @@ blackjax
 ipywidgets
 KDEpy
 hdf5storage
+pyarrow

@@ -8,9 +8,7 @@ BEHAVIOR:
 # low MoCA scores <= 26
 moca_rejection: ["P2", "P5", "P8", "P10", "P14", "P15", "P16", "P21"]
 
-EXPERIMENT_SITE:
-  ucla: ["CG", "COH", "MBY", "DP", "FUR", "LBR", "MAR", "SMI", "PAM", "RW", "BBK", "BER", "DCAM", "ALE", "DMO", "AJL", "SKU"]
-  case_western: ["RBA", "RDE", "SGA", "LHO", "RSH", "RZA", "SNO"]
+INCLUDE_EYE_TRACKING_SESSIONS: false
 
 MDS_UPDRS:
   UPDRS_ITEMS:
