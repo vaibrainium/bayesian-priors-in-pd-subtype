@@ -43,7 +43,7 @@ cmd_push_ddm_data() {
         "${CLUSTER_USER}@${CLUSTER_HOST}:${CLUSTER_DATA_PATH}/processed/ddm/"
 }
 
-cmd_pull() {
+cmd_pull_ddm_models() {
     scp -r "${CLUSTER_USER}@${CLUSTER_HOST}:${CLUSTER_DATA_PATH}/processed/ddm/" \
         "${CONTAINER_DATA_PATH}/processed/"
 }
@@ -78,7 +78,14 @@ case "$1" in
         esac
         ;;
     pull)
-        cmd_pull
+        target="${2:-all}"
+        case "$target" in
+            ddm-models)       cmd_pull_ddm_models ;;
+            *)
+                echo "Unknown pull target: $target (expected: sif-image, ddm-data, or omit for both)" >&2
+                exit 1
+                ;;
+        esac
         ;;
     help|--help|-h)
         usage
