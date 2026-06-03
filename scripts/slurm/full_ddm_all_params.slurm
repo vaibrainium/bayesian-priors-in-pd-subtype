@@ -13,7 +13,7 @@
 #SBATCH -o /gscratch/walkerlab/vaibhav/logs/ddm_fit_%A_%a.out
 #SBATCH -e /gscratch/walkerlab/vaibhav/logs/ddm_fit_%A_%a.err
 
-source "$(dirname "$0")/../../.env"
+source "${HOME}/bayesian-priors-in-pd-subtype/.env"
 
 module load singularity
 

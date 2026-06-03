@@ -11,26 +11,33 @@ usage() {
 Usage: $(basename "$0") <command> [target]
 
 Commands:
-  build            Build the Singularity image from the local Docker daemon
-  push [sif|ddm_data]  Transfer file(s) to the cluster (default: both sif and ddm_data)
-  pull             Download processed DDM results from the cluster
-  help             Show this message
+  build [docker_image|sif_image]  Build docker image or apptainer SIF (default: both)
+  push  [sif_image|ddm_data]     Transfer file(s) to the cluster (default: both)
+  pull                           Download processed DDM results from the cluster
+  help                           Show this message
 
 Examples:
   $(basename "$0") build
+  $(basename "$0") build docker_image
+  $(basename "$0") build sif_image [name.sif]
   $(basename "$0") push
-  $(basename "$0") push sif
+  $(basename "$0") push sif_image
   $(basename "$0") push ddm_data
   $(basename "$0") pull
 EOF
 }
 
-cmd_build() {
-    singularity build nhp-prior.sif docker-daemon://test:latest
+cmd_build_docker() {
+    docker build -t test:latest .
+}
+
+cmd_build_sif() {
+    local sif_name="${1:-pd-prior.sif}"
+    apptainer build "${sif_name}" docker-daemon://test:latest
 }
 
 cmd_push_sif() {
-    scp nhp-prior.sif "${CLUSTER_USER}@${CLUSTER_HOST}:${CLUSTER_DATA_PATH}/processed/"
+    scp pd-prior.sif "${CLUSTER_USER}@${CLUSTER_HOST}:${CLUSTER_DATA_PATH}/processed/"
 }
 
 cmd_push_ddm_data() {
@@ -50,16 +57,25 @@ fi
 
 case "$1" in
     build)
-        cmd_build
+        target="${2:-all}"
+        case "$target" in
+            docker_image) cmd_build_docker ;;
+            sif_image)    cmd_build_sif "${3:-}" ;;
+            all)          cmd_build_docker; cmd_build_sif ;;
+            *)
+                echo "Unknown build target: $target (expected: docker_image, sif_image, or omit for both)" >&2
+                exit 1
+                ;;
+        esac
         ;;
     push)
         target="${2:-all}"
         case "$target" in
-            sif)      cmd_push_sif ;;
+            sif_image)      cmd_push_sif ;;
             ddm_data) cmd_push_ddm_data ;;
             all)      cmd_push_sif; cmd_push_ddm_data ;;
             *)
-                echo "Unknown push target: $target (expected: sif, ddm_data, or omit for both)" >&2
+                echo "Unknown push target: $target (expected: sif_image, ddm_data, or omit for both)" >&2
                 exit 1
                 ;;
         esac
