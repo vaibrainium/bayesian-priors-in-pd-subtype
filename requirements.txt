@@ -38,3 +38,5 @@ ipywidgets
 KDEpy
 hdf5storage
 pyarrow
+cloudpickle
+graphviz
