@@ -187,8 +187,8 @@ def fit_model(
     return model, result
 
 
-def save_results(output_dir: Path, session_id, prior_block, model, result, job):
-    out_path = output_dir / f"{session_id}_prior_block_{prior_block}.pkl"
+def save_results(output_dir: Path, session_id, color, model, result, job):
+    out_path = output_dir / f"{session_id}_color_{color}.pkl"
 
     with open(out_path, "wb") as f:
         cloudpickle.dump(
@@ -203,12 +203,12 @@ def save_results(output_dir: Path, session_id, prior_block, model, result, job):
     logger.info(f"Saved: {out_path}")
 
 
-def save_failure(output_dir, session_id, prior_block, job, stage, error):
-    fail_path = output_dir / f"{session_id}_prior_block_{prior_block}.FAILED.json"
+def save_failure(output_dir, session_id, color, job, stage, error):
+    fail_path = output_dir / f"{session_id}_color_{color}.FAILED.json"
 
     payload = {
         "session_id": session_id,
-        "color": prior_block,
+        "color": color,
         "job": job,
         "stage": stage,
         "error": str(error),
@@ -267,14 +267,14 @@ if __name__ == "__main__":
     job = get_job(grid, args.job_id)
 
     session_id = job["session_id"]
-    prior_block = job["prior_block"]
+    color = job["color"]
 
     enable_leak = job["enable_leak"]
     enable_time_constant = job["enable_time_constant"]
     enable_sv = job["enable_sv"]
     enable_sz = job["enable_sz"]
 
-    logger.info(f"[START] job_id={args.job_id}:  Session ID - {session_id}, Prior Block - {prior_block}, Enable Leak - {enable_leak}, Enable Time Constant - {enable_time_constant}, Enable SV - {enable_sv}, Enable SZ - {enable_sz}")
+    logger.info(f"[START] job_id={args.job_id}:  Session ID - {session_id}, Color - {color}, Enable Leak - {enable_leak}, Enable Time Constant - {enable_time_constant}, Enable SV - {enable_sv}, Enable SZ - {enable_sz}")
 
     # ----------------------------
     # output dir
@@ -286,12 +286,12 @@ if __name__ == "__main__":
     # prepare data
     # ----------------------------
     try:
-        data = prepare_data(behavior_df, session_id, prior_block)
+        data = prepare_data(behavior_df, session_id, color)
 
         stimulus = build_stimulus(data)
     except Exception as e:
         logger.error(f"[FAILED] data_prep: {e}")
-        save_failure(output_dir, session_id, prior_block, job, "data_prep", e)
+        save_failure(output_dir, session_id, color, job, "data_prep", e)
         raise
     # ----------------------------
     # fit
@@ -300,15 +300,15 @@ if __name__ == "__main__":
         model, result = fit_model(data, stimulus, enable_leak=enable_leak, enable_time_constant=enable_time_constant, enable_sv=enable_sv, enable_sz=enable_sz)
     except Exception as e:
         logger.error(f"[FAILED] fit_model: {e}")
-        save_failure(output_dir, session_id, prior_block, job, "fit_model", e)
+        save_failure(output_dir, session_id, color, job, "fit_model", e)
         raise
 
     # ----------------------------
     # save
     # ----------------------------
     try:
-        save_results(output_dir, session_id, prior_block, model, result, job)
+        save_results(output_dir, session_id, color, model, result, job)
     except Exception as e:
         logger.error(f"[FAILED] save_results: {e}")
-        save_failure(output_dir, session_id, prior_block, job, "save_results", e)
+        save_failure(output_dir, session_id, color, job, "save_results", e)
         raise

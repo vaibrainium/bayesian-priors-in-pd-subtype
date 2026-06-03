@@ -9,24 +9,17 @@ import torch
 def prepare_data(
     behavior_df: pd.DataFrame,
     session_id,
-    prior_block,
+    color,
 ) -> pd.DataFrame:
 
-    data = behavior_df[(behavior_df["session_id"] == session_id) & (behavior_df["prior_block"] == prior_block)][["rt", "choice", "signed_coherence"]].copy()
+    data = behavior_df[(behavior_df["session_id"] == session_id) & (behavior_df["color"] == color)][["rt", "choice", "signed_coherence"]].copy()
 
     if data.empty:
-        raise ValueError(f"No data for session={session_id}, prior_block={prior_block}")
+        raise ValueError(f"No data for session={session_id}, color={color}")
 
     data["choice"] = data["choice"].astype(int)
 
     return data
-
-
-def build_stimulus(data: pd.DataFrame, rt_buffer: float = 1.5, max_seconds: float = 8.0) -> np.ndarray:
-    max_rt = float(np.clip(data["rt"].max() * rt_buffer, 0, max_seconds))
-    stimulus_length = max(100, int(max_rt * 1000))
-
-    return np.tile(data["signed_coherence"].to_numpy()[:, None], (1, stimulus_length))
 
 
 def build_stimulus(data: pd.DataFrame, rt_buffer: float = 1.5, max_seconds: float = 8.0) -> np.ndarray:
@@ -67,11 +60,6 @@ def get_job(grid: list[dict], job_id: int) -> dict:
         raise ValueError(f"job_id {job_id} out of bounds (max={len(grid) - 1})")
 
     return grid[job_id]
-
-
-# how many jobs do we have?
-grid = build_grid(behavior_df)
-print(f"Total number of jobs: {len(grid)}")
 
 
 class CPUUnpickler(pickle.Unpickler):

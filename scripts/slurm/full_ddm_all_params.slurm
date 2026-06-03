@@ -18,7 +18,7 @@ source "${HOME}/bayesian-priors-in-pd-subtype/.env"
 module load singularity
 
 singularity exec --nv \
-    --bind ${CLUSTER_DATA_PATH}:/mnt/data \
+    --bind ${CLUSTER_DATA_PATH}:/mnt/pd-data \
     --bind ${PROJECT_ROOT}:/src \
     ${SIF_PATH} \
     bash -c "
