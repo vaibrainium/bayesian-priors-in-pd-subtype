@@ -23,9 +23,8 @@ logger = logging.getLogger(__name__)
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 LIKELIHOOD_PARAMS = {
-    "chrono_weight": 1.5,
-    "caf_weight":    1.5,
-    "caf_bins":      5,
+    "nbins": 9,
+    "rt_nllh_weight": 1.0
 }
 
 FIXED_PARAMS = {
@@ -35,10 +34,10 @@ FIXED_PARAMS = {
 
 BASE_FREE_PARAMS = {
     "ndt":          FreeParam(0.1,  1.0),
-    "a":            FreeParam(0.8,  6.0),
+    "a":            FreeParam(0.5,  2.0),
     "z":            FreeParam(0.1,  0.9),
     "drift_gain":   FreeParam(1.0, 10.0),
-    "drift_offset": FreeParam(-5.0, 5.0),
+    "drift_offset": FreeParam(-2.0, 2.0),
 }
 
 
@@ -58,7 +57,12 @@ def make_params(enable_leak: bool, enable_time_constant: bool, enable_sv: bool =
     else:
         fixed["leak_rate"] = FixedParam(0.0)
     if enable_time_constant:
-        free["time_constant"] = FreeParam(-2.0, 2.0)
+        # Tightened from (-2.0, 2.0). A time_constant of 2.0 doubles the
+        # distance-from-start at t=1s, which over-compresses high-coherence RTs
+        # and inflates the zero-coherence peak (the over-peaked chronometric
+        # V-shape). The wide window also gave DE room to land on extreme-urgency
+        # local optima on individual sessions.
+        free["time_constant"] = FreeParam(-0.5, 0.5)
     else:
         fixed["time_constant"] = FixedParam(0.0)
     return free, fixed
@@ -69,27 +73,38 @@ class DDMModel(DecisionModel):
 
         super().__init__(free_params=free_params, fixed_params=fixed_params, device=DEVICE, likelihood_params=likelihood_params)
 
-    def _objective_function(self, values, data, stimulus, n_reps, l1_weight):
+    def _objective_function(self, values, data, stimulus, n_reps, l1_weight=0):
         try:
             params = self._build_params(values)
         except ValueError:
+            # Includes the new equilibrium-out-of-bounds check: treat as invalid.
             return 1e6
         result = self._simulate_condition(stimulus, params, n_reps)
         if result is None:
-            # Zero crossings across all reps — degenerate parameters.
+            # Zero crossings across all reps, degenerate parameters.
             # Finite graduated penalty so DE sees a gradient and can escape:
-            #   more negative time_constant (urgency inversion) → larger penalty
-            #   higher leak_rate (evidence trapping) → larger penalty
+            #   more negative time_constant (urgency inversion) -> larger penalty
+            #   higher leak_rate (evidence trapping) -> larger penalty
             tc = params.get("time_constant", 0.0)
             lr = params.get("leak_rate", 0.0)
-            urgency_penalty = max(0.0, -tc) * 200.0   # 0 at tc=0, up to 400 at tc=-2
-            leak_penalty    = lr * 500.0               # 0 at lr=0, 150 at lr=0.3
+            urgency_penalty = max(0.0, -tc) * 200.0
+            leak_penalty    = lr * 500.0
             return 500.0 + urgency_penalty + leak_penalty
-        return self.likelihood_calc.compute_nll(
+        nll = self.likelihood_calc.compute_nll(
             result["rt"], result["choice"],
             np.asarray(data["rt"]), np.asarray(data["choice"]),
             result["signed_coherence"], np.asarray(data["signed_coherence"]),
         )
+        if l1_weight > 0:
+            # L1 penalty on free parameters (normalised to [0,1] within their bounds
+            # so the scale is independent of parameter units).
+            l1 = 0.0
+            for key, spec in self._free_params.items():
+                width = spec.upper_bound - spec.lower_bound
+                if width > 0:
+                    l1 += abs(params[key] - spec.lower_bound) / width
+            nll += l1_weight * l1
+        return nll
 
 
 def get_output_dir(
@@ -214,7 +229,7 @@ def save_failure(output_dir, session_id, prior_block, job, stage, error):
     with open(fail_path, "w") as f:
         json.dump(payload, f, indent=2, cls=_NumpyEncoder)
 
-    logger.error(f"[FAILED] {stage} → {fail_path}")
+    logger.error(f"[FAILED] {stage} -> {fail_path}")
 
 
 if __name__ == "__main__":
