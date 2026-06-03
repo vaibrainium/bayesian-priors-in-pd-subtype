@@ -1,19 +1,19 @@
 import argparse
-import cloudpickle
+import json
+import logging
+import traceback
+from datetime import datetime
 from pathlib import Path
 
+import cloudpickle
 import numpy as np
 import pandas as pd
 import torch
-import traceback
-import json
-from datetime import datetime
 
 from config import dir_config
-from src.ddm.ddm import DecisionModel, FreeParam, FixedParam
-from src.ddm.utils import prepare_data, build_stimulus, build_grid, get_job
+from src.ddm.ddm import DecisionModel, FixedParam, FreeParam
+from src.ddm.utils import build_grid, build_stimulus, get_job, prepare_data
 
-import logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
@@ -22,10 +22,7 @@ logger = logging.getLogger(__name__)
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-LIKELIHOOD_PARAMS = {
-    "nbins": 9,
-    "rt_nllh_weight": 1.0
-}
+LIKELIHOOD_PARAMS = {"nbins": 9, "rt_nllh_weight": 1.0}
 
 FIXED_PARAMS = {
     "dt": FixedParam(0.001),
@@ -33,10 +30,10 @@ FIXED_PARAMS = {
 }
 
 BASE_FREE_PARAMS = {
-    "ndt":          FreeParam(0.1,  1.0),
-    "a":            FreeParam(0.5,  2.0),
-    "z":            FreeParam(0.1,  0.9),
-    "drift_gain":   FreeParam(1.0, 10.0),
+    "ndt": FreeParam(0.1, 1.0),
+    "a": FreeParam(0.5, 2.0),
+    "z": FreeParam(0.1, 0.9),
+    "drift_gain": FreeParam(1.0, 10.0),
     "drift_offset": FreeParam(-2.0, 2.0),
 }
 
@@ -67,8 +64,8 @@ def make_params(enable_leak: bool, enable_time_constant: bool, enable_sv: bool =
         fixed["time_constant"] = FixedParam(0.0)
     return free, fixed
 
-class DDMModel(DecisionModel):
 
+class DDMModel(DecisionModel):
     def __init__(self, fixed_params, free_params, likelihood_params=None):
 
         super().__init__(free_params=free_params, fixed_params=fixed_params, device=DEVICE, likelihood_params=likelihood_params)
@@ -88,12 +85,15 @@ class DDMModel(DecisionModel):
             tc = params.get("time_constant", 0.0)
             lr = params.get("leak_rate", 0.0)
             urgency_penalty = max(0.0, -tc) * 200.0
-            leak_penalty    = lr * 500.0
+            leak_penalty = lr * 500.0
             return 500.0 + urgency_penalty + leak_penalty
         nll = self.likelihood_calc.compute_nll(
-            result["rt"], result["choice"],
-            np.asarray(data["rt"]), np.asarray(data["choice"]),
-            result["signed_coherence"], np.asarray(data["signed_coherence"]),
+            result["rt"],
+            result["choice"],
+            np.asarray(data["rt"]),
+            np.asarray(data["choice"]),
+            result["signed_coherence"],
+            np.asarray(data["signed_coherence"]),
         )
         if l1_weight > 0:
             # L1 penalty on free parameters (normalised to [0,1] within their bounds
@@ -118,10 +118,7 @@ def get_output_dir(
     if not enable_leak and not enable_time_constant and not enable_sv and not enable_sz:
         model_name = "plain_ddm"
     else:
-        model_name = (
-            f"leak-{int(enable_leak)}_"
-            f"tc-{int(enable_time_constant)}"
-        )
+        model_name = f"leak-{int(enable_leak)}_tc-{int(enable_time_constant)}"
 
     output_dir = ddm_dir / model_name
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -158,6 +155,7 @@ def data_verification(data: pd.DataFrame):
     if data["signed_coherence"].min() < -1 or data["signed_coherence"].max() > 1:
         raise ValueError("Signed coherence values out of expected range (-1 to 1)")
 
+
 def fit_model(
     data: pd.DataFrame,
     stimulus: np.ndarray,
@@ -190,14 +188,16 @@ def fit_model(
 
 
 def save_results(output_dir: Path, session_id, prior_block, model, result, job):
-    out_path = (output_dir / f"{session_id}_prior_block_{prior_block}.pkl")
+    out_path = output_dir / f"{session_id}_prior_block_{prior_block}.pkl"
 
     with open(out_path, "wb") as f:
-        cloudpickle.dump({
+        cloudpickle.dump(
+            {
                 "model": model,
                 "results": result,
                 "job": job,
-        }, f,
+            },
+            f,
         )
 
     logger.info(f"Saved: {out_path}")
@@ -208,7 +208,7 @@ def save_failure(output_dir, session_id, prior_block, job, stage, error):
 
     payload = {
         "session_id": session_id,
-        "prior_block": prior_block,
+        "color": prior_block,
         "job": job,
         "stage": stage,
         "error": str(error),
@@ -236,13 +236,7 @@ if __name__ == "__main__":
     import logging
     import sys
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(message)s",
-        handlers=[
-            logging.StreamHandler(sys.stdout)
-        ]
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s", handlers=[logging.StreamHandler(sys.stdout)])
 
     logger = logging.getLogger(__name__)
     # ----------------------------
