@@ -1,8 +1,15 @@
+"""Session-wise k-fold cross-validated GLM-HMM fitting.
+
+Every ``(session, state, fold)`` fit is dispatched in a single joblib pool so all
+cores stay busy and the worker pool is created only once, with inner BLAS/OpenMP
+threads pinned to 1 so the workers don't oversubscribe the cores. The per-fold EM
+uses ``initialize=False`` and is fully deterministic.
+"""
+
 import numpy as np
-import numpy.random as npr
 import ssm
 from joblib import Parallel, delayed
-from sklearn.model_selection import KFold
+from threadpoolctl import threadpool_limits
 from tqdm import tqdm
 
 
@@ -35,7 +42,7 @@ def cross_validation_split(session_length, idx_split=0, n_sub_block=4, k_folds=5
 
 def session_wise_fit_cv(observations, inputs, masks, n_sessions, init_params, k_folds=5, state_range=np.arange(2, 6), fitting_method="em", n_iters=200, tolerance=10**-4, n_jobs=-1):
     """
-    Optimized version of session-wise GLM-HMM fitting with k-fold cross-validation using parallelization.
+    Session-wise k-fold cross-validated GLM-HMM fitting, all fits dispatched in one pool.
     """
 
     masks = [np.ones_like(arr) for arr in observations] if masks is None else masks
@@ -44,11 +51,15 @@ def session_wise_fit_cv(observations, inputs, masks, n_sessions, init_params, k_
     assert len(masks) == n_sessions, "Masks are not compatible with number of sessions!"
     assert "transition_matrices" in init_params.keys() and "glm_weights" in init_params.keys(), "Initial parameters not provided correctly!"
 
-    def fit_model_on_fold(idx_split, idx_session):
+    obs_dim = observations[0].shape[1]
+    input_dim = inputs[0].shape[1]
+    C = len(np.unique(observations[0]))
+
+    def fit_model_on_fold(idx_session, state_idx, n_states, idx_split):
         """
         Fit a GLM-HMM on one fold and compute training and testing log-likelihoods.
         """
-        glm_hmm = ssm.HMM(n_states, observations[0].shape[1], inputs[0].shape[1], observations="input_driven_obs", observation_kwargs=dict(C=len(np.unique(observations[0]))), transitions="standard")
+        glm_hmm = ssm.HMM(n_states, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C), transitions="standard")
         glm_hmm.observations.params = np.copy(init_params["glm_weights"][n_states])
         glm_hmm.transitions.params = np.copy(init_params["transition_matrices"][n_states])
 
@@ -62,45 +73,24 @@ def session_wise_fit_cv(observations, inputs, masks, n_sessions, init_params, k_
         test_inputs = [inputs[idx_session][test] for test in test_idx]
 
         # Fit the model on the training data
-        joint_prob = glm_hmm.fit(train_obs, inputs=train_inputs, masks=train_masks, method=fitting_method, num_iters=n_iters, initialize=False, tolerance=tolerance)
-        # return the elbo/log-posterior in progress
+        glm_hmm.fit(train_obs, inputs=train_inputs, masks=train_masks, method=fitting_method, num_iters=n_iters, initialize=False, tolerance=tolerance)
         test_ll = glm_hmm.log_likelihood(test_obs, inputs=test_inputs, masks=test_masks)
         train_ll = glm_hmm.log_likelihood(train_obs, inputs=train_inputs, masks=train_masks)
-        return glm_hmm, train_ll, test_ll
+        return idx_session, state_idx, n_states, idx_split, glm_hmm, train_ll, test_ll
 
-    def process_session_state_fold(idx_session, n_states):
-        """
-        Fit a GLM-HMM for a specific session and state with cross-validation.
-        """
+    # Dispatch every (session, state, fold) fit in a single pool so all cores stay busy and the
+    # joblib pool is created only once (previously one pool per session x state, 5-way parallel only).
+    tasks = [(idx_session, state_idx, n_states, idx_split) for idx_session in range(n_sessions) for state_idx, n_states in enumerate(state_range) for idx_split in range(k_folds)]
+    with threadpool_limits(limits=1):
+        results = Parallel(n_jobs=n_jobs)(delayed(fit_model_on_fold)(idx_session, state_idx, n_states, idx_split) for idx_session, state_idx, n_states, idx_split in tqdm(tasks, desc="Fitting CV folds"))
 
-        # Collecting results across all folds
-        results = Parallel(n_jobs=n_jobs)(delayed(fit_model_on_fold)(idx_split, idx_session) for idx_split in np.arange(k_folds))
-        # Unzip results and ensure consistent shape for log-likelihoods
-        models, train_lls, test_lls = zip(*results)
-
-        # Convert train_lls and test_lls into lists of lists to handle varying lengths
-        train_ll_list = [ll for ll in train_lls]  # List of lists for train log-likelihoods
-        test_ll_list = [ll for ll in test_lls]  # List of lists for test log-likelihoods
-
-        # Return the models and the lists of log-likelihoods
-        return models, train_ll_list, test_ll_list
-
-    # Initialize the dictionary before using it
-    models_session_state_fold = {}
-    # Initialize arrays to hold the log-likelihoods (train and test)
+    # Scatter results back into the original structures (index-safe via returned keys).
+    models_session_state_fold = {idx_session: {n_states: [None] * k_folds for n_states in state_range} for idx_session in range(n_sessions)}
     train_ll = np.full((n_sessions, len(state_range), k_folds), np.nan)
     test_ll = np.full((n_sessions, len(state_range), k_folds), np.nan)
-
-    for idx_session in range(n_sessions):
-        models_session_state_fold[idx_session] = {}
-        print(f"Fitting session {idx_session}...")
-        for state_idx, n_states in enumerate(state_range):
-            print(f"Fitting {n_states} states...")
-            models, train_lls, test_lls = process_session_state_fold(idx_session, n_states)
-            models_session_state_fold[idx_session][n_states] = models
-
-            # Convert the list of log-likelihoods to arrays
-            train_ll[idx_session, state_idx, :] = train_lls
-            test_ll[idx_session, state_idx, :] = test_lls
+    for idx_session, state_idx, n_states, idx_split, glm_hmm, train_ll_val, test_ll_val in results:
+        models_session_state_fold[idx_session][n_states][idx_split] = glm_hmm
+        train_ll[idx_session, state_idx, idx_split] = train_ll_val
+        test_ll[idx_session, state_idx, idx_split] = test_ll_val
 
     return models_session_state_fold, train_ll, test_ll
