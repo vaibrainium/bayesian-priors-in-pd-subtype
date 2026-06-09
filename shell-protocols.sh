@@ -11,10 +11,10 @@ usage() {
 Usage: $(basename "$0") <command> [target]
 
 Commands:
-  build [docker_image|sif-image]  Build docker image or apptainer SIF (default: both)
-  push  [sif-image|ddm-data]     Transfer file(s) to the cluster (default: both)
-  pull                           Download processed DDM results from the cluster
-  help                           Show this message
+  build [docker_image|sif-image]            Build docker image or apptainer SIF (default: both)
+  push  [sif-image|ddm-data|glm-hmm-data]   Transfer file(s) to the cluster (default: sif + ddm-data)
+  pull  [ddm-models|glm-hmm-models]         Download processed results from the cluster
+  help                                      Show this message
 
 Examples:
   $(basename "$0") build
@@ -22,7 +22,9 @@ Examples:
   $(basename "$0") push
   $(basename "$0") push sif-image
   $(basename "$0") push ddm-data
-  $(basename "$0") pull
+  $(basename "$0") push glm-hmm-data
+  $(basename "$0") pull ddm-models
+  $(basename "$0") pull glm-hmm-models
 EOF
 }
 
@@ -48,6 +50,17 @@ cmd_pull_ddm_models() {
         "${CONTAINER_DATA_PATH}/processed/"
 }
 
+cmd_push_glm_hmm_data() {
+    scp "${CONTAINER_DATA_PATH}/processed/processed_all_data_accu_60_all.csv" \
+        "${CONTAINER_DATA_PATH}/processed/processed_metadata_all_data_accu_60.csv" \
+        "${CLUSTER_USER}@${CLUSTER_HOST}:${CLUSTER_DATA_PATH}/processed/"
+}
+
+cmd_pull_glm_hmm_models() {
+    scp -r "${CLUSTER_USER}@${CLUSTER_HOST}:${CLUSTER_DATA_PATH}/processed/glm_hmm/" \
+        "${CONTAINER_DATA_PATH}/processed/"
+}
+
 if [[ $# -eq 0 ]]; then
     usage
     exit 0
@@ -68,11 +81,12 @@ case "$1" in
     push)
         target="${2:-all}"
         case "$target" in
-            sif-image)      cmd_push_sif ;;
-            ddm-data) cmd_push_ddm_data ;;
-            all)      cmd_push_sif; cmd_push_ddm_data ;;
+            sif-image)    cmd_push_sif ;;
+            ddm-data)     cmd_push_ddm_data ;;
+            glm-hmm-data) cmd_push_glm_hmm_data ;;
+            all)          cmd_push_sif; cmd_push_ddm_data ;;
             *)
-                echo "Unknown push target: $target (expected: sif-image, ddm-data, or omit for both)" >&2
+                echo "Unknown push target: $target (expected: sif-image, ddm-data, glm-hmm-data, or omit for both)" >&2
                 exit 1
                 ;;
         esac
@@ -80,9 +94,10 @@ case "$1" in
     pull)
         target="${2:-all}"
         case "$target" in
-            ddm-models)       cmd_pull_ddm_models ;;
+            ddm-models)     cmd_pull_ddm_models ;;
+            glm-hmm-models) cmd_pull_glm_hmm_models ;;
             *)
-                echo "Unknown pull target: $target (expected: sif-image, ddm-data, or omit for both)" >&2
+                echo "Unknown pull target: $target (expected: ddm-models, glm-hmm-models)" >&2
                 exit 1
                 ;;
         esac
