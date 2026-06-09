@@ -90,3 +90,32 @@ def session_wise_fit(observations, inputs, masks, n_sessions, init_params, n_sta
     fit_ll_session = {idx_session: fit_ll for idx_session, _, fit_ll in results}
 
     return models_session, fit_ll_session
+
+
+def group_wise_fit(observations, inputs, masks, init_params, n_states, fitting_method="em", n_iters=2500, tolerance=10**-4):
+    """Pooled (group-level) GLM-HMM final fit: one model over all sessions at ``n_states``.
+
+    Companion to :func:`session_wise_fit` for the pooled pipeline. Every session's full
+    (un-split) data contributes to a single fit, warm-started from ``init_params`` (e.g. the
+    best pooled cross-validation fold). Unlike :func:`group_wise_fit_cv`, ``init_params`` is a
+    flat single set ``{"glm_weights": <array>, "transition_matrices": <array>}`` for the one
+    model. EM uses ``initialize=False`` and is deterministic; BLAS is left unpinned so the
+    single fit can use all cores.
+
+    Returns ``(glm_hmm, fit_ll)``.
+    """
+    masks = [np.ones_like(arr) for arr in observations] if masks is None else masks
+    assert len(inputs) == len(observations), "Inputs are not compatible with number of sessions!"
+    assert len(masks) == len(observations), "Masks are not compatible with number of sessions!"
+    assert "transition_matrices" in init_params and "glm_weights" in init_params, "Initial parameters not provided correctly!"
+
+    obs_dim = observations[0].shape[1]
+    input_dim = inputs[0].shape[1]
+    C = len(np.unique(np.concatenate(observations)))  # pooled label count across all sessions
+
+    glm_hmm = ssm.HMM(n_states, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C), transitions="standard")
+    glm_hmm.observations.params = np.copy(init_params["glm_weights"])
+    glm_hmm.transitions.params = np.copy(init_params["transition_matrices"])
+
+    fit_ll = glm_hmm.fit(observations, inputs=inputs, masks=masks, method=fitting_method, num_iters=n_iters, initialize=False, tolerance=tolerance)
+    return glm_hmm, fit_ll
