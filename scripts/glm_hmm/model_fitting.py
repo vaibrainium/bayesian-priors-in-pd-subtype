@@ -99,12 +99,13 @@ def prepare_group(data: pd.DataFrame, session_ids: list, config: GlmHmmConfig) -
     }
 
 
-def run_cv_for_group(prep: dict, config: GlmHmmConfig, cv_mode: str, output_dir: Path, subject_group: str):
+def run_cv_for_group(prep: dict, config: GlmHmmConfig, name: str, cv_mode: str, output_dir: Path, subject_group: str):
     """Run one CV strategy on an already-prepared group and persist the result.
 
     Reuses the shared ``prep`` (design matrices, global fit, inits) from
-    :func:`prepare_group`. Returns the ``group_pooled_cv`` dict in pooled mode (for
-    downstream state selection), otherwise ``None``.
+    :func:`prepare_group`. ``name`` is the experiment key the config is registered
+    under (serialised into the output pickle). Returns the ``group_pooled_cv`` dict in
+    pooled mode (for downstream state selection), otherwise ``None``.
     """
     init_params = prep["init_params"]
 
@@ -137,7 +138,7 @@ def run_cv_for_group(prep: dict, config: GlmHmmConfig, cv_mode: str, output_dir:
                 "global": prep["global_fits"],
                 "group_pooled_cv": group_pooled_fits,
                 "data": prep["session_data"],
-                "config": config.to_serializable(),
+                "config": config.to_serializable(name),
             },
         )
         return group_pooled_fits
@@ -162,7 +163,7 @@ def run_cv_for_group(prep: dict, config: GlmHmmConfig, cv_mode: str, output_dir:
             "global": prep["global_fits"],
             "session_wise": {"models": models_cv, "train_ll": train_ll, "test_ll": test_ll},
             "data": prep["session_data"],
-            "config": config.to_serializable(),
+            "config": config.to_serializable(name),
         },
     )
     return None
@@ -199,19 +200,20 @@ def main():
     )
     args = parser.parse_args()
 
-    configs = [CONFIGS[alias] for alias in (args.config or CONFIGS)]
+    config_names = list(args.config or CONFIGS)
 
     processed_dir = Path(dir_config.data.processed)
     data, metadata = load_data(processed_dir)
     subject_groups = get_group_session_ids(metadata)
 
-    for config in configs:
-        print(f"\n=== Fitting config: {config.name} (cv_modes={args.cv_mode}) ===")
+    for name in config_names:
+        config = CONFIGS[name]
+        print(f"\n=== Fitting config: {name} (cv_modes={args.cv_mode}) ===")
         # One output dir per requested CV mode; the global fit is shared across them.
         output_dirs = {}
         for cv_mode in args.cv_mode:
             dir_suffix = "__global_pooled_cv" if cv_mode == "pooled" else "__session_pooled_cv"
-            output_dir = processed_dir / "glm_hmm" / f"{config.name}{dir_suffix}"
+            output_dir = processed_dir / "glm_hmm" / f"{name}{dir_suffix}"
             output_dir.mkdir(parents=True, exist_ok=True)
             output_dirs[cv_mode] = output_dir
 
@@ -222,7 +224,7 @@ def main():
 
             for cv_mode in args.cv_mode:
                 print(f"  -> {cv_mode} CV for {group_name}")
-                result = run_cv_for_group(prep, config, cv_mode, output_dirs[cv_mode], group_name)
+                result = run_cv_for_group(prep, config, name, cv_mode, output_dirs[cv_mode], group_name)
 
                 if cv_mode == "pooled":
                     selection = select_best_n_states(result, prep["session_data"], rule=config.selection_rule, tol=config.selection_tol)
@@ -230,7 +232,7 @@ def main():
                     print(f"     best = {selection['best']} states (peak {selection['best_unconstrained']}, rule={selection['rule']}); bits/trial: {np.round(selection['mean_bits'], 4).tolist()}")
 
         if "pooled" in args.cv_mode:
-            print(f"\nbest_states ({config.selection_rule}) for {config.name} = {best_states}")
+            print(f"\nbest_states ({config.selection_rule}) for {name} = {best_states}")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ class GlmHmmConfig:
     """Model specification and fitting hyperparameters for one GLM-HMM run."""
 
     # --- model specification (serialised into the output pickle) ---
-    name: str
+    masked: bool = True  # invalid trials are masked (required by the current pipeline)
     current_trial_features: tuple = ("normalized_stimulus",)
     prev_trial_features: tuple = ("prev_choice", "prev_coherence", "prev_choice_coherence")
     n_trials_back: int = 1
@@ -35,7 +35,7 @@ class GlmHmmConfig:
     @property
     def is_masked(self) -> bool:
         """Whether invalid trials are masked (required by the current pipeline)."""
-        return "masked" in self.name
+        return self.masked
 
     @property
     def input_features(self) -> list:
@@ -53,10 +53,14 @@ class GlmHmmConfig:
     def input_dim(self) -> int:
         return len(self.model_features)
 
-    def to_serializable(self) -> dict:
-        """Plain-dict view stored in the output pickle (kept stable for downstream notebooks)."""
+    def to_serializable(self, name: str) -> dict:
+        """Plain-dict view stored in the output pickle (kept stable for downstream notebooks).
+
+        ``name`` is the experiment key (alias) the config is registered under in
+        ``glm_hmm.experiments.CONFIGS``; it identifies the run's output sub-directory.
+        """
         return {
-            "name": self.name,
+            "name": name,
             "observed_dimensions": self.observed_dimensions,
             "n_categories": self.n_categories,
             "add_bias": self.add_bias,

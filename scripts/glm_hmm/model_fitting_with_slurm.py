@@ -36,14 +36,15 @@ import numpy as np
 import model_fitting as mf
 
 
-def cv_output_dir(processed_dir: Path, config, cv_mode: str) -> Path:
+def cv_output_dir(processed_dir: Path, name: str, cv_mode: str) -> Path:
     """Output directory for one (config, cv_mode).
 
     Mirrors the suffix convention in ``model_fitting.main`` so the wrapper and the
-    standalone script write to (and resume from) the same locations.
+    standalone script write to (and resume from) the same locations. ``name`` is the
+    experiment key the config is registered under in ``glm_hmm.experiments.CONFIGS``.
     """
     dir_suffix = "__global_pooled_cv" if cv_mode == "pooled" else "__session_pooled_cv"
-    return processed_dir / "glm_hmm" / f"{config.name}{dir_suffix}"
+    return processed_dir / "glm_hmm" / f"{name}{dir_suffix}"
 
 
 def unit_done(output_dir: Path, group_name: str) -> bool:
@@ -52,31 +53,32 @@ def unit_done(output_dir: Path, group_name: str) -> bool:
     return pkl.exists() and pkl.stat().st_size > 0
 
 
-def run_unit(config, group_name: str, session_ids: list, data, cv_modes: list, processed_dir: Path, force: bool):
+def run_unit(config, name: str, group_name: str, session_ids: list, data, cv_modes: list, processed_dir: Path, force: bool):
     """Fit one (config, group) work unit across the requested CV modes.
 
     Computes the shared global fit once (:func:`model_fitting.prepare_group`) and reuses
-    it across modes. Skips modes whose output already exists unless ``force``. Returns
-    the chosen state count when pooled CV ran, otherwise ``None``.
+    it across modes. Skips modes whose output already exists unless ``force``. ``name`` is
+    the experiment key the config is registered under. Returns the chosen state count when
+    pooled CV ran, otherwise ``None``.
     """
     output_dirs = {}
     for cv_mode in cv_modes:
-        output_dir = cv_output_dir(processed_dir, config, cv_mode)
+        output_dir = cv_output_dir(processed_dir, name, cv_mode)
         output_dir.mkdir(parents=True, exist_ok=True)
         output_dirs[cv_mode] = output_dir
 
     pending = cv_modes if force else [m for m in cv_modes if not unit_done(output_dirs[m], group_name)]
     if not pending:
-        print(f"  skip {config.name} / {group_name}: all CV modes already on disk")
+        print(f"  skip {name} / {group_name}: all CV modes already on disk")
         return None
 
-    print(f"Preparing {config.name} / {group_name} group (global fit) with sessions: {session_ids}")
+    print(f"Preparing {name} / {group_name} group (global fit) with sessions: {session_ids}")
     prep = mf.prepare_group(data, session_ids, config)
 
     best = None
     for cv_mode in pending:
         print(f"  -> {cv_mode} CV for {group_name}")
-        result = mf.run_cv_for_group(prep, config, cv_mode, output_dirs[cv_mode], group_name)
+        result = mf.run_cv_for_group(prep, config, name, cv_mode, output_dirs[cv_mode], group_name)
 
         if cv_mode == "pooled":
             selection = mf.select_best_n_states(result, prep["session_data"], rule=config.selection_rule, tol=config.selection_tol)
@@ -119,7 +121,7 @@ def main():
     )
     args = parser.parse_args()
 
-    configs = [mf.CONFIGS[alias] for alias in (args.config or mf.CONFIGS)]
+    config_names = list(args.config or mf.CONFIGS)
 
     processed_dir = Path(mf.dir_config.data.processed)
     data, metadata = mf.load_data(processed_dir)
@@ -128,32 +130,33 @@ def main():
     # Deterministic flat work-unit list: config order (CLI/registry) x group order
     # (dict insertion). The same --config string yields the same index -> unit mapping
     # across all array tasks, so --job_id always picks a well-defined unit.
-    jobs = [(config, gname, sids) for config in configs for gname, sids in subject_groups.items()]
+    jobs = [(name, gname, sids) for name in config_names for gname, sids in subject_groups.items()]
 
     if args.list_jobs:
         print(f"{len(jobs)} work units (set Slurm --array=0-{len(jobs) - 1}):")
-        for idx, (config, gname, _) in enumerate(jobs):
-            print(f"  {idx}: {config.name} / {gname}")
+        for idx, (name, gname, _) in enumerate(jobs):
+            print(f"  {idx}: {name} / {gname}")
         return
 
     if args.job_id is not None:
         if not 0 <= args.job_id < len(jobs):
             parser.error(f"--job_id {args.job_id} out of range [0, {len(jobs) - 1}] for {len(jobs)} work units")
-        config, group_name, session_ids = jobs[args.job_id]
-        print(f"\n=== job {args.job_id}/{len(jobs) - 1}: {config.name} / {group_name} (cv_modes={args.cv_mode}) ===")
-        run_unit(config, group_name, session_ids, data, args.cv_mode, processed_dir, args.force)
+        name, group_name, session_ids = jobs[args.job_id]
+        print(f"\n=== job {args.job_id}/{len(jobs) - 1}: {name} / {group_name} (cv_modes={args.cv_mode}) ===")
+        run_unit(mf.CONFIGS[name], name, group_name, session_ids, data, args.cv_mode, processed_dir, args.force)
         return
 
     # Full run: every unit in sequence (local use). Aggregate pooled selections per config.
-    for config in configs:
-        print(f"\n=== Fitting config: {config.name} (cv_modes={args.cv_mode}) ===")
+    for name in config_names:
+        config = mf.CONFIGS[name]
+        print(f"\n=== Fitting config: {name} (cv_modes={args.cv_mode}) ===")
         best_states = {}
         for group_name, session_ids in subject_groups.items():
-            best = run_unit(config, group_name, session_ids, data, args.cv_mode, processed_dir, args.force)
+            best = run_unit(config, name, group_name, session_ids, data, args.cv_mode, processed_dir, args.force)
             if best is not None:
                 best_states[group_name] = best
         if "pooled" in args.cv_mode and best_states:
-            print(f"\nbest_states ({config.selection_rule}) for {config.name} = {best_states}")
+            print(f"\nbest_states ({config.selection_rule}) for {name} = {best_states}")
 
 
 if __name__ == "__main__":
