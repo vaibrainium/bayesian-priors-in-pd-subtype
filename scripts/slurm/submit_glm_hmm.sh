@@ -14,19 +14,21 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-DEFAULT_CONFIGS="normalized_stimulus standardized_stimulus standardized_stimulus_with_color normalized_stimulus_with_color"
+# DEFAULT_CONFIGS="normalized_stimulus standardized_stimulus standardized_stimulus_with_color normalized_stimulus_with_color"
+DEFAULT_CONFIGS="no_standardization_curr_stim no_standardization_curr_stim_color no_standardization_curr_stim_prev_prev_choiceXtarget no_standardization_curr_stim_color_prev_choiceXtarget no_standardization_curr_stim_no_prev_coh no_standardization_curr_stim_color_no_prev_coh no_standardization_curr_stim_prev_prev_choiceXtarget_no_prev_target no_standardization_curr_stim_color_prev_choiceXtarget_no_prev_target"
 CONFIGS="${*:-${DEFAULT_CONFIGS}}"
 
 # Subject groups are fixed by get_group_session_ids in data_preparation.py.
 # One work unit per (config, group) pair — mirrors the jobs list in model_fitting_with_slurm.py.
-GROUPS="asmHC Tremor_OFF Tremor_ON Brady_OFF Brady_ON"
-N_CONFIGS=$(echo ${CONFIGS} | wc -w)
-N_GROUPS=$(echo ${GROUPS}   | wc -w)
+# Note: GROUPS is a bash reserved variable (Unix group IDs); use SUBJECT_GROUPS instead.
+SUBJECT_GROUPS="asmHC Tremor_OFF Tremor_ON Brady_OFF Brady_ON"
+N_CONFIGS=$(echo ${CONFIGS}         | wc -w)
+N_GROUPS=$(echo ${SUBJECT_GROUPS}   | wc -w)
 N=$(( N_CONFIGS * N_GROUPS ))
 
 ARRAY_RANGE="0-$(( N - 1 ))"
 echo "Configs : ${CONFIGS}"
-echo "Groups  : ${GROUPS}"
+echo "Groups  : ${SUBJECT_GROUPS}"
 echo "Units   : ${N}  (--array=${ARRAY_RANGE})"
 echo
 
