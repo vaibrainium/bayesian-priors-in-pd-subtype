@@ -52,7 +52,7 @@ def cross_validation_split(session_length, idx_split=0, n_sub_block=4, k_folds=5
     return train_idx, test_idx
 
 
-def session_wise_fit_cv(observations, inputs, masks, n_sessions, init_params, k_folds=5, state_range=np.arange(2, 6), fitting_method="em", n_iters=200, tolerance=10**-4, n_jobs=-1):
+def session_wise_fit_cv(observations, inputs, masks, n_sessions, init_params, k_folds=5, state_range=np.arange(2, 6), fitting_method="em", n_iters=200, tolerance=10**-4, prior_sigma=2.0, n_jobs=-1):
     """
     Session-wise k-fold cross-validated GLM-HMM fitting, all fits dispatched in one pool.
     """
@@ -71,7 +71,7 @@ def session_wise_fit_cv(observations, inputs, masks, n_sessions, init_params, k_
         """
         Fit a GLM-HMM on one fold and compute training and testing log-likelihoods.
         """
-        glm_hmm = ssm.HMM(n_states, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C), transitions="standard")
+        glm_hmm = ssm.HMM(n_states, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C, prior_sigma=prior_sigma), transitions="standard")
         glm_hmm.observations.params = np.copy(init_params["glm_weights"][n_states])
         glm_hmm.transitions.params = np.copy(init_params["transition_matrices"][n_states])
 
@@ -124,7 +124,7 @@ def _perturb_init(glm_weights, n_states, input_dim, init_num):
     return weights, transition_matrix
 
 
-def group_wise_fit_cv(observations, inputs, masks, init_params, k_folds=5, state_range=np.arange(1, 6), fitting_method="em", n_iters=2500, tolerance=10**-4, n_initializations=5, n_jobs=-1):
+def group_wise_fit_cv(observations, inputs, masks, init_params, k_folds=5, state_range=np.arange(1, 6), fitting_method="em", n_iters=2500, tolerance=10**-4, n_initializations=5, prior_sigma=2.0, n_jobs=-1):
     """Pooled (group-level) k-fold cross-validated GLM-HMM fitting.
 
     Parameters mirror :func:`src.glm_hmm.cv_utils.session_wise_fit_cv`. ``observations``,
@@ -157,7 +157,7 @@ def group_wise_fit_cv(observations, inputs, masks, init_params, k_folds=5, state
     def fit_fold(state_idx, n_states, idx_split, init_num):
         """Fit one pooled restart on one fold and score pooled train/test log-likelihoods."""
         weights, transition_matrix = _perturb_init(init_params["glm_weights"][n_states], n_states, input_dim, init_num)
-        glm_hmm = ssm.HMM(n_states, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C), transitions="standard")
+        glm_hmm = ssm.HMM(n_states, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C, prior_sigma=prior_sigma), transitions="standard")
         glm_hmm.observations.params = weights
         glm_hmm.transitions.params = np.copy(init_params["transition_matrices"][n_states]) if transition_matrix is None else [transition_matrix]
 

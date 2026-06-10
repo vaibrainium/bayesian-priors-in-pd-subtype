@@ -79,6 +79,7 @@ def prepare_group(data: pd.DataFrame, session_ids: list, config: GlmHmmConfig) -
         state_range=config.state_range,
         n_iters=config.n_iter_global,
         n_initializations=config.n_inits,
+        prior_sigma=config.prior_sigma,
     )
 
     # Pick the best initialisation per state count to seed the CV folds.
@@ -121,6 +122,7 @@ def run_cv_for_group(prep: dict, config: GlmHmmConfig, name: str, cv_mode: str, 
             tolerance=config.tolerance,
             fitting_method=config.fitting_method,
             n_initializations=config.n_inits_cv,
+            prior_sigma=config.prior_sigma,
         )
         group_pooled_fits = {
             "models": models_cv,
@@ -155,6 +157,7 @@ def run_cv_for_group(prep: dict, config: GlmHmmConfig, name: str, cv_mode: str, 
         k_folds=config.k_folds,
         tolerance=config.tolerance,
         fitting_method=config.fitting_method,
+        prior_sigma=config.prior_sigma,
     )
     save_models(
         output_dir,

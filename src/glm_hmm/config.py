@@ -26,6 +26,7 @@ class GlmHmmConfig:
     k_folds: int = 5
     tolerance: float = 1e-4
     fitting_method: str = "em"
+    prior_sigma: float = 2.0  # L2 prior std on GLM weights; smaller = more shrinkage
 
     # --- pooled (group-level) CV only; ignored in session-wise mode ---
     n_inits_cv: int = 5  # random restarts per (state, fold) in pooled CV; best train-LL kept
@@ -69,4 +70,5 @@ class GlmHmmConfig:
             "n_trials_back": self.n_trials_back,
             "model_features": self.model_features,
             "state_range": self.state_range.tolist(),
+            "prior_sigma": self.prior_sigma,
         }

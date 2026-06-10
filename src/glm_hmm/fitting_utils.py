@@ -15,15 +15,18 @@ from threadpoolctl import threadpool_limits
 from tqdm import tqdm
 
 
-def global_fit(observations, inputs, masks, state_range=np.arange(2, 6), n_initializations=20, fitting_method="em", n_iters=200, tolerance=10**-4, n_jobs=-1):
+def global_fit(observations, inputs, masks, state_range=np.arange(2, 6), n_initializations=20, fitting_method="em", n_iters=200, tolerance=10**-4, prior_sigma=2.0, n_jobs=-1):
     """
     Global GLM-HMM fitting with all (state, initialization) fits dispatched in one pool.
+
+    ``prior_sigma`` sets the std of the Gaussian L2 prior on the GLM weights (smaller =
+    stronger shrinkage); it is passed to every ``InputDrivenObservations`` constructor.
     """
     print("Fitting GLM globally...")
     obs_dim = observations[0].shape[1]
     input_dim = inputs[0].shape[1]
     C = len(np.unique(observations[0]))
-    glm = ssm.HMM(1, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C), transitions="standard")
+    glm = ssm.HMM(1, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C, prior_sigma=prior_sigma), transitions="standard")
 
     glm.fit(observations, inputs=inputs, masks=masks, method=fitting_method, num_iters=n_iters, tolerance=tolerance)
     glm_weights = glm.observations.params
@@ -33,7 +36,7 @@ def global_fit(observations, inputs, masks, state_range=np.arange(2, 6), n_initi
         Fit GLM-HMM with a single initialization.
         """
         npr.seed(init_num * n_states)  # Set seed for reproducibility
-        glm_hmm = ssm.HMM(n_states, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C), transitions="standard")
+        glm_hmm = ssm.HMM(n_states, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C, prior_sigma=prior_sigma), transitions="standard")
 
         # Initialize weights and transition matrix
         glm_hmm.observations.params = glm_weights + np.random.normal(0, 0.2, (n_states, 1, input_dim))
@@ -57,9 +60,11 @@ def global_fit(observations, inputs, masks, state_range=np.arange(2, 6), n_initi
     return models_glm_hmm, fit_lls_glm_hmm
 
 
-def session_wise_fit(observations, inputs, masks, n_sessions, init_params, n_states, fitting_method="em", n_iters=200, tolerance=10**-4, n_jobs=-1):
+def session_wise_fit(observations, inputs, masks, n_sessions, init_params, n_states, fitting_method="em", n_iters=200, tolerance=10**-4, prior_sigma=2.0, n_jobs=-1):
     """
     Session-wise GLM-HMM fitting (one fit per session) with BLAS threads pinned.
+
+    ``prior_sigma`` sets the std of the Gaussian L2 prior on the GLM weights.
     """
     masks = [np.ones_like(arr) for arr in observations] if masks is None else masks
     assert len(observations) == n_sessions, "Observations are not compatible with number of sessions!"
@@ -75,7 +80,7 @@ def session_wise_fit(observations, inputs, masks, n_sessions, init_params, n_sta
         """
         Fit a GLM-HMM for a specific session.
         """
-        glm_hmm = ssm.HMM(n_states, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C), transitions="standard")
+        glm_hmm = ssm.HMM(n_states, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C, prior_sigma=prior_sigma), transitions="standard")
         glm_hmm.observations.params = init_params["glm_weights"][idx_session]
         glm_hmm.transitions.params = init_params["transition_matrices"][idx_session]
 
@@ -92,7 +97,7 @@ def session_wise_fit(observations, inputs, masks, n_sessions, init_params, n_sta
     return models_session, fit_ll_session
 
 
-def group_wise_fit(observations, inputs, masks, init_params, n_states, fitting_method="em", n_iters=2500, tolerance=10**-4):
+def group_wise_fit(observations, inputs, masks, init_params, n_states, fitting_method="em", n_iters=2500, tolerance=10**-4, prior_sigma=2.0):
     """Pooled (group-level) GLM-HMM final fit: one model over all sessions at ``n_states``.
 
     Companion to :func:`session_wise_fit` for the pooled pipeline. Every session's full
@@ -113,7 +118,7 @@ def group_wise_fit(observations, inputs, masks, init_params, n_states, fitting_m
     input_dim = inputs[0].shape[1]
     C = len(np.unique(np.concatenate(observations)))  # pooled label count across all sessions
 
-    glm_hmm = ssm.HMM(n_states, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C), transitions="standard")
+    glm_hmm = ssm.HMM(n_states, obs_dim, input_dim, observations="input_driven_obs", observation_kwargs=dict(C=C, prior_sigma=prior_sigma), transitions="standard")
     glm_hmm.observations.params = np.copy(init_params["glm_weights"])
     glm_hmm.transitions.params = np.copy(init_params["transition_matrices"])
 
