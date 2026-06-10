@@ -66,6 +66,8 @@ def extract_previous_trial_data(session_data: pd.DataFrame, valid_idx: np.ndarra
                 vals = choice
             elif var_col == "choice_outcome":
                 vals = choice * session_data.outcome.values
+            elif var_col == "choice_target":
+                vals = choice * target
             elif var_col == "choice_coherence":
                 vals = choice * signed_coherence
             elif var_col == "coherence_choice_outcome":
@@ -88,7 +90,7 @@ def prepare_input_data(data: pd.DataFrame, valid_idx: np.ndarray, first_trial: i
 
     # Current-trial features
     for idx, feat in enumerate(config.input_features):
-        if feat in ["normalized_stimulus", "standardized_stimulus"]:
+        if feat in ["normalized_stimulus", "standardized_stimulus", "stimulus"]:
             X[0, :, idx] = data.signed_coherence.values[first_trial:]
         elif feat == "color":
             X[0, :, idx] = data.color.values[first_trial:]
@@ -152,7 +154,7 @@ def process_sessions(data: pd.DataFrame, session_ids: list, config: GlmHmmConfig
     for idx_session in range(len(session_ids)):
         row_mask = masks_session_wise[idx_session][:, 0]
         for feat_idx, feat in enumerate(config.model_features):
-            if feat not in ["bias", "normalized_stimulus"]:
+            if feat in config.standardize_features:
                 inputs_session_wise[idx_session][row_mask, feat_idx] = preprocessing.scale(inputs_session_wise[idx_session][row_mask, feat_idx], axis=0)
 
     return unnormalized_inputs_session_wise, inputs_session_wise, choices_session_wise, masks_session_wise, invalid_idx_session_wise

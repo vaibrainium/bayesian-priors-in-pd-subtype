@@ -33,6 +33,11 @@ class GlmHmmConfig:
     selection_rule: str = "1sem"  # "1sem" (within one fold-SEM of peak) or "tol"
     selection_tol: float = 0.005  # bits/trial, used only when selection_rule == "tol"
 
+    # --- input normalisation ---
+    # Base feature names to z-score per session. Prev-trial names are expanded to
+    # {name}_1 ... {name}_{n_trials_back} automatically (see standardize_features).
+    standardize_inputs: tuple = ()
+
     @property
     def is_masked(self) -> bool:
         """Whether invalid trials are masked (required by the current pipeline)."""
@@ -53,6 +58,18 @@ class GlmHmmConfig:
     @property
     def input_dim(self) -> int:
         return len(self.model_features)
+
+    @property
+    def standardize_features(self) -> list:
+        """Exact model_features column names to z-score (expands prev-trial base names)."""
+        prev_base = set(self.prev_trial_features)
+        result = []
+        for name in self.standardize_inputs:
+            if name in prev_base:
+                result.extend(f"{name}_{n + 1}" for n in range(self.n_trials_back))
+            else:
+                result.append(name)
+        return result
 
     def to_serializable(self, name: str) -> dict:
         """Plain-dict view stored in the output pickle (kept stable for downstream notebooks).

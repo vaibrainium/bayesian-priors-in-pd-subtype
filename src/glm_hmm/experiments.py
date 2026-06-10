@@ -13,12 +13,15 @@ masked by the pipeline); only override the fields you are changing, everything e
 falls back to the GlmHmmConfig defaults.
 """
 
+import numpy as np
+
 from .config import GlmHmmConfig
 
 CONFIGS: dict[str, GlmHmmConfig] = {
     "normalized_stimulus": GlmHmmConfig(
         current_trial_features=("normalized_stimulus",),
         prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
+        standardize_inputs=("prev_choice", "prev_coherence", "prev_choice_coherence"),
         n_trials_back=1,
         add_bias=True,
         observed_dimensions=1,
@@ -27,6 +30,7 @@ CONFIGS: dict[str, GlmHmmConfig] = {
     "standardized_stimulus": GlmHmmConfig(
         current_trial_features=("standardized_stimulus",),
         prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
+        standardize_inputs=("standardized_stimulus", "prev_choice", "prev_coherence", "prev_choice_coherence"),
         n_trials_back=1,
         add_bias=True,
         observed_dimensions=1,
@@ -35,6 +39,7 @@ CONFIGS: dict[str, GlmHmmConfig] = {
     "standardized_stimulus_with_color": GlmHmmConfig(
         current_trial_features=("standardized_stimulus", "color"),
         prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
+        standardize_inputs=("standardized_stimulus", "color", "prev_choice", "prev_coherence", "prev_choice_coherence"),
         n_trials_back=1,
         add_bias=True,
         observed_dimensions=1,
@@ -43,15 +48,26 @@ CONFIGS: dict[str, GlmHmmConfig] = {
     "normalized_stimulus_with_color": GlmHmmConfig(
         current_trial_features=("normalized_stimulus", "color"),
         prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
+        standardize_inputs=("color", "prev_choice", "prev_coherence", "prev_choice_coherence"),
         n_trials_back=1,
         add_bias=True,
         observed_dimensions=1,
         n_categories=2,
     ),
+    "ashwood_matched": GlmHmmConfig(
+        current_trial_features=("normalized_stimulus",),
+        prev_trial_features=("prev_choice", "prev_target", "prev_choice_target"),
+        standardize_inputs=("prev_choice", "prev_target", "prev_choice_target"),
+        add_bias=True,
+        observed_dimensions=1,
+        n_categories=2,
+        state_range=np.arange(1, 8),
+    ),
     "2_back": GlmHmmConfig(
         n_trials_back=2,
         current_trial_features=("normalized_stimulus",),
         prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
+        standardize_inputs=("prev_choice", "prev_coherence", "prev_choice_coherence"),
         add_bias=True,
         observed_dimensions=1,
         n_categories=2,
