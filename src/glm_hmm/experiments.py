@@ -19,7 +19,7 @@ from .config import GlmHmmConfig
 
 CONFIGS: dict[str, GlmHmmConfig] = {
     "normalized_stimulus": GlmHmmConfig(
-        current_trial_features=("normalized_stimulus",),
+        current_trial_features=("stimulus",),
         prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
         standardize_inputs=("prev_choice", "prev_coherence", "prev_choice_coherence"),
         n_trials_back=1,
@@ -28,7 +28,7 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         n_categories=2,
     ),
     "standardized_stimulus": GlmHmmConfig(
-        current_trial_features=("standardized_stimulus",),
+        current_trial_features=("stimulus",),
         prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
         standardize_inputs=("standardized_stimulus", "prev_choice", "prev_coherence", "prev_choice_coherence"),
         n_trials_back=1,
@@ -37,7 +37,7 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         n_categories=2,
     ),
     "standardized_stimulus_with_color": GlmHmmConfig(
-        current_trial_features=("standardized_stimulus", "color"),
+        current_trial_features=("stimulus", "color"),
         prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
         standardize_inputs=("standardized_stimulus", "color", "prev_choice", "prev_coherence", "prev_choice_coherence"),
         n_trials_back=1,
@@ -46,7 +46,7 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         n_categories=2,
     ),
     "normalized_stimulus_with_color": GlmHmmConfig(
-        current_trial_features=("normalized_stimulus", "color"),
+        current_trial_features=("stimulus", "color"),
         prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
         standardize_inputs=("color", "prev_choice", "prev_coherence", "prev_choice_coherence"),
         n_trials_back=1,
@@ -55,7 +55,7 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         n_categories=2,
     ),
     "ashwood_matched": GlmHmmConfig(
-        current_trial_features=("normalized_stimulus",),
+        current_trial_features=("stimulus",),
         prev_trial_features=("prev_choice", "prev_target", "prev_choice_target"),
         standardize_inputs=("prev_choice", "prev_target", "prev_choice_target"),
         add_bias=True,
@@ -65,7 +65,7 @@ CONFIGS: dict[str, GlmHmmConfig] = {
     ),
     "2_back": GlmHmmConfig(
         n_trials_back=2,
-        current_trial_features=("normalized_stimulus",),
+        current_trial_features=("stimulus",),
         prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
         standardize_inputs=("prev_choice", "prev_coherence", "prev_choice_coherence"),
         add_bias=True,

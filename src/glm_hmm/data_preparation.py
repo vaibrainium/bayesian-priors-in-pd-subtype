@@ -90,7 +90,7 @@ def prepare_input_data(data: pd.DataFrame, valid_idx: np.ndarray, first_trial: i
 
     # Current-trial features
     for idx, feat in enumerate(config.input_features):
-        if feat in ["normalized_stimulus", "standardized_stimulus", "stimulus"]:
+        if feat in ["stimulus"]:
             X[0, :, idx] = data.signed_coherence.values[first_trial:]
         elif feat == "color":
             X[0, :, idx] = data.color.values[first_trial:]
