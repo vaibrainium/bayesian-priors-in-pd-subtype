@@ -70,7 +70,6 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         add_bias=True,
         observed_dimensions=1,
         n_categories=2,
-        state_range=np.arange(1, 8),
     ),
     "no_standardization_curr_stim_color": GlmHmmConfig(
         current_trial_features=("stimulus", "color"),
@@ -78,7 +77,6 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         add_bias=True,
         observed_dimensions=1,
         n_categories=2,
-        state_range=np.arange(1, 8),
     ),
     "no_standardization_curr_stim_prev_prev_choiceXtarget": GlmHmmConfig(
         current_trial_features=("stimulus",),
@@ -86,7 +84,6 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         add_bias=True,
         observed_dimensions=1,
         n_categories=2,
-        state_range=np.arange(1, 8),
     ),
     "no_standardization_curr_stim_color_prev_choiceXtarget": GlmHmmConfig(
         current_trial_features=("stimulus", "color"),
@@ -94,7 +91,6 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         add_bias=True,
         observed_dimensions=1,
         n_categories=2,
-        state_range=np.arange(1, 8),
     ),
     "no_standardization_curr_stim_no_prev_coh": GlmHmmConfig(
         current_trial_features=("stimulus",),
@@ -102,7 +98,6 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         add_bias=True,
         observed_dimensions=1,
         n_categories=2,
-        state_range=np.arange(1, 8),
     ),
     "no_standardization_curr_stim_color_no_prev_coh": GlmHmmConfig(
         current_trial_features=("stimulus", "color"),
@@ -110,7 +105,6 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         add_bias=True,
         observed_dimensions=1,
         n_categories=2,
-        state_range=np.arange(1, 8),
     ),
     "no_standardization_curr_stim_prev_prev_choiceXtarget_no_prev_target": GlmHmmConfig(
         current_trial_features=("stimulus",),
@@ -118,7 +112,6 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         add_bias=True,
         observed_dimensions=1,
         n_categories=2,
-        state_range=np.arange(1, 8),
     ),
     "no_standardization_curr_stim_color_prev_choiceXtarget_no_prev_target": GlmHmmConfig(
         current_trial_features=("stimulus", "color"),
@@ -126,6 +119,5 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         add_bias=True,
         observed_dimensions=1,
         n_categories=2,
-        state_range=np.arange(1, 8),
     ),
 }
