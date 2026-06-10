@@ -42,12 +42,13 @@ if [ -n "${CV_MODE}" ]; then
 fi
 
 # Query the number of work units dynamically from the script itself.
-N=$(singularity exec \
+# Capture full output first (avoids BrokenPipeError from piping to head).
+LIST_OUTPUT=$(singularity exec \
         --bind ${CLUSTER_DATA_PATH}:/mnt/pd-data \
         --bind ${PROJECT_ROOT}:/src \
         ${SIF_PATH} \
-        bash -c "export PYTHONPATH=/src && python3 /src/scripts/glm_hmm/model_finetuning.py ${CV_MODE_ARG} --list-jobs" \
-    | head -1 | awk '{print $1}')
+        bash -c "export PYTHONPATH=/src && python3 /src/scripts/glm_hmm/model_finetuning.py ${CV_MODE_ARG} --list-jobs")
+N=$(echo "${LIST_OUTPUT}" | head -1 | awk '{print $1}')
 
 if [ -z "${N}" ] || [ "${N}" -eq 0 ]; then
     echo "No work units found (all _final.pkl already exist?). Nothing to submit."
