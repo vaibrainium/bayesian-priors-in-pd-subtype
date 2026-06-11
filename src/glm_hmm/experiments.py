@@ -78,7 +78,7 @@ CONFIGS: dict[str, GlmHmmConfig] = {
         observed_dimensions=1,
         n_categories=2,
     ),
-    "no_standardization_curr_stim_prev_prev_choiceXtarget": GlmHmmConfig(
+    "no_standardization_curr_stim_prev_choiceXtarget": GlmHmmConfig(
         current_trial_features=("stimulus",),
         prev_trial_features=("prev_choice", "prev_target", "prev_choice_target"),
         add_bias=True,
