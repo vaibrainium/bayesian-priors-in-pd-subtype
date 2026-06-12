@@ -16,7 +16,9 @@ All heavy fitting is reused from ``src.glm_hmm.fitting_utils``; nothing here ref
 import numpy as np
 import numpy.random as npr
 import pandas as pd
+from joblib import Parallel, delayed
 from scipy.optimize import linear_sum_assignment
+from threadpoolctl import threadpool_limits
 
 from src.glm_hmm.fitting_utils import group_wise_fit
 from src.shared_glm_hmm.fitting import session_arrays
@@ -85,32 +87,44 @@ def icl_bic(bundle):
 # --------------------------------------------------------------------------- #
 # Bootstrap state-stability
 # --------------------------------------------------------------------------- #
-def bootstrap_state_stability(bundle, state_range=None, B=20, n_iters=300, seed=0):
+def _one_bootstrap(obs, inp, msk, init_flat, K, n_iters, prior_sigma, ref_w, seed):
+    """One bootstrap resample + pooled refit; return mean per-state weight correlation to ref."""
+    rng = npr.RandomState(seed)
+    idx = rng.choice(len(obs), len(obs), replace=True)
+    o_b = [obs[i] for i in idx]
+    i_b = [inp[i] for i in idx]
+    m_b = [msk[i] for i in idx]
+    boot_model, _ = group_wise_fit(o_b, i_b, m_b, init_flat, n_states=K, n_iters=n_iters, prior_sigma=prior_sigma)
+    boot_w = -boot_model.observations.params[:, 0, :]
+    aligned = boot_w[_align_perm(boot_w, ref_w)]
+    return float(np.nanmean([np.corrcoef(ref_w[k], aligned[k])[0, 1] for k in range(K)]))
+
+
+def bootstrap_state_stability(bundle, state_range=None, B=20, n_iters=300, seed=0, n_jobs=-1):
     """Reproducibility of the K-state solution across session bootstraps.
 
     For each K: fit a reference pooled model on all sessions, then refit on ``B`` session
     resamples (with replacement), Hungarian-align each to the reference, and score the mean
-    per-state Pearson correlation of GLM weights. Higher = more reproducible.
+    per-state Pearson correlation of GLM weights. Higher = more reproducible. The ``B`` refits
+    per K run in parallel (joblib, ``n_jobs``; BLAS pinned to 1 thread per worker).
 
     ``n_iters`` is kept modest (refits are warm-started from the reference init) because
     this is the expensive criterion; restrict ``state_range`` to a window around the
     candidate K to keep runtime bounded.
 
-    Returns a DataFrame indexed by state count with ``mean_stability, sem_stability``.
+    Returns a DataFrame indexed by state count with ``mean_stability, sem_stability, B``.
     """
     if state_range is None:
         state_range = list(np.asarray(bundle["group_pooled_cv"]["state_range"]))
     init_all = bundle["global"]["init_params"]
     obs, inp, msk = session_arrays(bundle)
-    n_sessions = len(obs)
     prior_sigma = bundle["config"].get("prior_sigma", 2.0)
-    rng = npr.RandomState(seed)
     rows = []
 
     for K in state_range:
         K = int(K)
         if K < 2:
-            rows.append(dict(state=K, mean_stability=np.nan, sem_stability=np.nan))
+            rows.append(dict(state=K, mean_stability=np.nan, sem_stability=np.nan, B=0))
             continue
 
         init_flat = {
@@ -120,20 +134,12 @@ def bootstrap_state_stability(bundle, state_range=None, B=20, n_iters=300, seed=
         ref_model, _ = group_wise_fit(obs, inp, msk, init_flat, n_states=K, n_iters=n_iters, prior_sigma=prior_sigma)
         ref_w = -ref_model.observations.params[:, 0, :]  # (K, M)
 
-        corrs = []
-        for _ in range(B):
-            idx = rng.choice(n_sessions, n_sessions, replace=True)
-            o_b = [obs[i] for i in idx]
-            i_b = [inp[i] for i in idx]
-            m_b = [msk[i] for i in idx]
-            boot_model, _ = group_wise_fit(o_b, i_b, m_b, init_flat, n_states=K, n_iters=n_iters, prior_sigma=prior_sigma)
-            boot_w = -boot_model.observations.params[:, 0, :]
-            perm = _align_perm(boot_w, ref_w)
-            aligned = boot_w[perm]
-            per_state = [np.corrcoef(ref_w[k], aligned[k])[0, 1] for k in range(K)]
-            corrs.append(np.nanmean(per_state))
-
+        with threadpool_limits(limits=1):
+            corrs = Parallel(n_jobs=n_jobs)(
+                delayed(_one_bootstrap)(obs, inp, msk, init_flat, K, n_iters, prior_sigma, ref_w, seed + b)
+                for b in range(B)
+            )
         corrs = np.array(corrs)
-        rows.append(dict(state=K, mean_stability=float(corrs.mean()), sem_stability=float(corrs.std() / np.sqrt(B))))
+        rows.append(dict(state=K, mean_stability=float(corrs.mean()), sem_stability=float(corrs.std() / np.sqrt(B)), B=B))
 
     return pd.DataFrame(rows).set_index("state")
