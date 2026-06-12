@@ -25,7 +25,7 @@ from src.shared_glm_hmm.fitting import finetune_pooled
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--best-k", type=int, required=True, help="State count to finetune at (from the 6.00 triangulation figure).")
-    parser.add_argument("--config", default="ashwood_color", choices=list(CONFIGS), help="Feature variant (must already be CV-fit).")
+    parser.add_argument("--config", default="ashwood_color_non_standardized", choices=list(CONFIGS), help="Feature variant (must already be CV-fit).")
     parser.add_argument("--color-coding", default="01", choices=["01", "pm1"], help="Must match the coding used at fit time (selects the run directory).")
     parser.add_argument("--n-iters", type=int, default=2500, help="EM iterations for the finetuning fits (default: 2500).")
     parser.add_argument("--force", action="store_true", help="Refit even if all_subjects_final.pkl exists.")

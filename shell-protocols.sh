@@ -25,6 +25,7 @@ Examples:
   $(basename "$0") push glm-hmm-data
   $(basename "$0") pull ddm-models
   $(basename "$0") pull glm-hmm-models
+  $(basename "$0") pull shared-glm-hmm-models
 EOF
 }
 
@@ -58,6 +59,11 @@ cmd_push_glm_hmm_data() {
 
 cmd_pull_glm_hmm_models() {
     scp -r "${CLUSTER_USER}@${CLUSTER_HOST}:${CLUSTER_DATA_PATH}/processed/glm_hmm/" \
+        "${CONTAINER_DATA_PATH}/processed/"
+}
+
+cmd_pull_shared_glm_hmm_models() {
+    scp -r "${CLUSTER_USER}@${CLUSTER_HOST}:${CLUSTER_DATA_PATH}/processed/shared_glm_hmm/" \
         "${CONTAINER_DATA_PATH}/processed/"
 }
 
@@ -96,8 +102,9 @@ case "$1" in
         case "$target" in
             ddm-models)     cmd_pull_ddm_models ;;
             glm-hmm-models) cmd_pull_glm_hmm_models ;;
+            shared-glm-hmm-models) cmd_pull_shared_glm_hmm_models ;;
             *)
-                echo "Unknown pull target: $target (expected: ddm-models, glm-hmm-models)" >&2
+                echo "Unknown pull target: $target (expected: ddm-models, glm-hmm-models, shared-glm-hmm-models)" >&2
                 exit 1
                 ;;
         esac

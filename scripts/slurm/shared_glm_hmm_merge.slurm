@@ -21,7 +21,7 @@ source "${HOME}/bayesian-priors-in-pd-subtype/.env"
 
 module load singularity
 
-CONFIG="${CONFIG:-ashwood_color}"
+CONFIG="${CONFIG:-ashwood_color_non_standardized}"
 COLOR="${COLOR:-01}"
 
 singularity exec \

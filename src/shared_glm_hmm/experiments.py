@@ -18,6 +18,16 @@ from src.glm_hmm.config import GlmHmmConfig
 CONFIGS: dict[str, GlmHmmConfig] = {
     # Canonical Ashwood history + the prior (color) cue. color is left in its raw 0/1
     # coding (not standardized) so its weight reads directly as prior-integration gain.
+    "ashwood_color_non_standardized": GlmHmmConfig(
+        current_trial_features=("stimulus", "color"),
+        prev_trial_features=("prev_choice", "prev_target", "prev_choice_target"),
+        standardize_inputs=(),
+        n_trials_back=1,
+        add_bias=True,
+        observed_dimensions=1,
+        n_categories=2,
+        state_range=np.arange(1, 7),
+    ),
     "ashwood_color": GlmHmmConfig(
         current_trial_features=("stimulus", "color"),
         prev_trial_features=("prev_choice", "prev_target", "prev_choice_target"),

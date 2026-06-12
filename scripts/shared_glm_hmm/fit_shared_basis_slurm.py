@@ -107,7 +107,7 @@ def merge_shards(shard_dir: Path, full_config, run_name: str) -> dict:
 # --------------------------------------------------------------------------- #
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--config", default="ashwood_color", choices=list(CONFIGS))
+    parser.add_argument("--config", default="ashwood_color_non_standardized", choices=list(CONFIGS))
     parser.add_argument("--color-coding", default="01", choices=["01", "pm1"])
     parser.add_argument("--job_id", type=int, default=None, help="Fit only the K at this index (Slurm array task). See --list-jobs.")
     parser.add_argument("--list-jobs", action="store_true", help="Print K work-unit enumeration and the --array range, then exit.")
