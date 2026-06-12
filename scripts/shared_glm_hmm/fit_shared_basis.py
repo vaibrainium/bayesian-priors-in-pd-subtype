@@ -6,7 +6,7 @@ independent per-(subtype x medication) models. Output schema matches
 ``scripts/glm_hmm/model_fitting.py`` (pooled mode), so the analysis notebooks read it
 unchanged.
 
-    python3 scripts/shared_glm_hmm/fit_shared_basis.py --config ashwood_color
+    python3 scripts/shared_glm_hmm/fit_shared_basis.py --config XY__tgt
 
 Output: ``shared_glm_hmm/<run_name>/all_subjects.pkl`` (``run_name`` = config, plus a
 ``__colorpm1`` suffix when ``--color-coding pm1`` so both codings can coexist).
@@ -45,7 +45,7 @@ def load_data(processed_dir: Path, color_coding: str = "01"):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--config", default="ashwood_color_non_standardized", choices=list(CONFIGS), help="Feature variant to fit (from src.shared_glm_hmm.experiments).")
+    parser.add_argument("--config", default="XY__tgt", choices=list(CONFIGS), help="Feature variant to fit (from src.shared_glm_hmm.experiments).")
     parser.add_argument("--color-coding", default="01", choices=["01", "pm1"], help="`color` regressor coding: 01 (equal=0, unequal=1; recommended) or pm1 (equal=-1, unequal=+1).")
     parser.add_argument("--force", action="store_true", help="Refit even if all_subjects.pkl already exists.")
     args = parser.parse_args()

@@ -8,11 +8,11 @@ shard, and a final ``--merge`` step stacks the shards into the same ``all_subjec
 bundle that ``fit_shared_basis.py`` would have produced in one process.
 
     # enumerate K work units (sets the --array range)
-    python3 scripts/shared_glm_hmm/fit_shared_basis_slurm.py --config ashwood_color --list-jobs
+    python3 scripts/shared_glm_hmm/fit_shared_basis_slurm.py --config XY__tgt --list-jobs
     # one array task: fit a single K
-    python3 scripts/shared_glm_hmm/fit_shared_basis_slurm.py --config ashwood_color --job_id $SLURM_ARRAY_TASK_ID
+    python3 scripts/shared_glm_hmm/fit_shared_basis_slurm.py --config XY__tgt --job_id $SLURM_ARRAY_TASK_ID
     # after the array finishes: assemble the bundle
-    python3 scripts/shared_glm_hmm/fit_shared_basis_slurm.py --config ashwood_color --merge
+    python3 scripts/shared_glm_hmm/fit_shared_basis_slurm.py --config XY__tgt --merge
 
 Shards: ``shared_glm_hmm/<run_name>/shards/k<K>.pkl``  ->  merged: ``.../all_subjects.pkl``.
 """
@@ -107,7 +107,7 @@ def merge_shards(shard_dir: Path, full_config, run_name: str) -> dict:
 # --------------------------------------------------------------------------- #
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--config", default="ashwood_color_non_standardized", choices=list(CONFIGS))
+    parser.add_argument("--config", default="XY__tgt", choices=list(CONFIGS))
     parser.add_argument("--color-coding", default="01", choices=["01", "pm1"])
     parser.add_argument("--job_id", type=int, default=None, help="Fit only the K at this index (Slurm array task). See --list-jobs.")
     parser.add_argument("--list-jobs", action="store_true", help="Print K work-unit enumeration and the --array range, then exit.")

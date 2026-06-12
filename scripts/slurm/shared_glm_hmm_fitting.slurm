@@ -27,7 +27,7 @@ source "${HOME}/bayesian-priors-in-pd-subtype/.env"
 module load singularity
 
 # Passed from submit_shared_glm_hmm.sh via --export; defaults are a fallback only.
-CONFIG="${CONFIG:-ashwood_color_non_standardized}"
+CONFIG="${CONFIG:-XY__tgt}"
 COLOR="${COLOR:-01}"
 
 singularity exec \

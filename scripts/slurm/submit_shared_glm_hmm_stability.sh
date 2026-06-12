@@ -4,19 +4,19 @@
 # all_subjects.pkl.
 #
 # Usage: bash scripts/slurm/submit_shared_glm_hmm_stability.sh [--config NAME] [--color 01|pm1] [--B N] [--n-iters N]
-#   --config   default ashwood_color_non_standardized; overrides CONFIG env. Must match the fit.
+#   --config   default XY__tgt; overrides CONFIG env. Must match the fit.
 #   --color    01 (default) or pm1.
 #   --B        bootstrap resamples per K (default 30).
 #   --n-iters  EM iters per bootstrap refit (default 300).
 #
 # Example:
-#   bash scripts/slurm/submit_shared_glm_hmm_stability.sh --config ashwood_color_non_standardized --B 30
+#   bash scripts/slurm/submit_shared_glm_hmm_stability.sh --config XY__tgt --B 30
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-CONFIG="${CONFIG:-ashwood_color_non_standardized}"
+CONFIG="${CONFIG:-XY__tgt}"
 COLOR="${COLOR:-01}"
 B="${B:-30}"
 NITERS="${NITERS:-300}"

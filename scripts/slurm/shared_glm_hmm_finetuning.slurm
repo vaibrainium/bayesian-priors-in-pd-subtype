@@ -23,7 +23,7 @@ source "${HOME}/bayesian-priors-in-pd-subtype/.env"
 
 module load singularity
 
-CONFIG="${CONFIG:-ashwood_color_non_standardized}"
+CONFIG="${CONFIG:-XY__tgt}"
 COLOR="${COLOR:-01}"
 : "${BESTK:?BESTK not set — choose K from notebook 6.00 and submit via submit_shared_glm_hmm_finetuning.sh}"
 

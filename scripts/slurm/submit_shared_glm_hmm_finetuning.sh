@@ -4,18 +4,18 @@
 #
 # Usage: bash scripts/slurm/submit_shared_glm_hmm_finetuning.sh <K> [--config NAME] [--color 01|pm1]
 #   <K>        state count chosen from notebook 6.00 (or --best-k K, or BESTK=K env).
-#   --config   default ashwood_color_non_standardized; overrides CONFIG env. Must match the fit.
+#   --config   default XY__tgt; overrides CONFIG env. Must match the fit.
 #   --color    01 (default) or pm1. Must match the fit.
 #
 # Examples:
-#   bash scripts/slurm/submit_shared_glm_hmm_finetuning.sh 4 --config ashwood_color_non_standardized
+#   bash scripts/slurm/submit_shared_glm_hmm_finetuning.sh 4 --config XY__tgt
 #   BESTK=4 bash scripts/slurm/submit_shared_glm_hmm_finetuning.sh
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-CONFIG="${CONFIG:-ashwood_color_non_standardized}"
+CONFIG="${CONFIG:-XY__tgt}"
 COLOR="${COLOR:-01}"
 BESTK="${BESTK:-}"
 

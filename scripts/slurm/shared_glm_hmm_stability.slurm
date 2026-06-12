@@ -23,7 +23,7 @@ source "${HOME}/bayesian-priors-in-pd-subtype/.env"
 
 module load singularity
 
-CONFIG="${CONFIG:-ashwood_color_non_standardized}"
+CONFIG="${CONFIG:-XY__tgt}"
 COLOR="${COLOR:-01}"
 B="${B:-30}"
 NITERS="${NITERS:-300}"

@@ -7,7 +7,7 @@ node, so compute them on a worker and let notebook 6.00 just load the CSVs. Read
   selection_iclbic.csv      per-K  ll, n_params, n_trials, bic, entropy, icl
   selection_stability.csv    per-K  mean_stability, sem_stability, B
 
-    python3 scripts/shared_glm_hmm/compute_stability.py --config ashwood_color_non_standardized
+    python3 scripts/shared_glm_hmm/compute_stability.py --config XY__tgt
 """
 
 import argparse
@@ -30,7 +30,7 @@ def run_name_for(config_name: str, color_coding: str) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--config", default="ashwood_color_non_standardized", choices=list(CONFIGS))
+    parser.add_argument("--config", default="XY__tgt", choices=list(CONFIGS))
     parser.add_argument("--color-coding", default="01", choices=["01", "pm1"])
     parser.add_argument("--B", type=int, default=30, help="Bootstrap resamples per K (default 30).")
     parser.add_argument("--n-iters", type=int, default=300, help="EM iters per bootstrap refit (default 300).")

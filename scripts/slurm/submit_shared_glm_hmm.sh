@@ -5,15 +5,15 @@
 #
 # Usage: bash scripts/slurm/submit_shared_glm_hmm.sh [--config NAME] [--color 01|pm1] [--list-jobs]
 #   --config     feature variant from src.shared_glm_hmm.experiments.CONFIGS
-#                (default ashwood_color_non_standardized); overrides any CONFIG env var.
+#                (default XY__tgt); overrides any CONFIG env var.
 #   --color      color coding: 01 (recommended) or pm1 (default 01).
 #   --list-jobs  print the K work units for the chosen config and exit WITHOUT submitting.
 #   CONFIG=.. COLOR=.. env vars are also honored (flags win).
 #
 # Examples:
-#   bash scripts/slurm/submit_shared_glm_hmm.sh --config ashwood_color_non_standardized --list-jobs
-#   bash scripts/slurm/submit_shared_glm_hmm.sh --config ashwood_color_non_standardized
-#   CONFIG=ashwood_color COLOR=pm1 bash scripts/slurm/submit_shared_glm_hmm.sh
+#   bash scripts/slurm/submit_shared_glm_hmm.sh --config XY__tgt --list-jobs
+#   bash scripts/slurm/submit_shared_glm_hmm.sh --config XY__tgt
+#   CONFIG=XY__tgt COLOR=pm1 bash scripts/slurm/submit_shared_glm_hmm.sh
 
 set -euo pipefail
 
@@ -21,7 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "${HOME}/bayesian-priors-in-pd-subtype/.env"
 
-CONFIG="${CONFIG:-ashwood_color_non_standardized}"
+CONFIG="${CONFIG:-XY__tgt}"
 COLOR="${COLOR:-01}"
 LIST_ONLY=0
 
