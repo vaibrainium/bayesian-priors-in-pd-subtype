@@ -94,6 +94,10 @@ def prepare_input_data(data: pd.DataFrame, valid_idx: np.ndarray, first_trial: i
             X[0, :, idx] = data.signed_coherence.values[first_trial:]
         elif feat == "color":
             X[0, :, idx] = data.color.values[first_trial:]
+        elif feat == "stim_x_color":
+            # color x stimulus interaction, built from the already-scaled signed
+            # coherence so it stays on the same [-1, 1] scale as the `stimulus` feature.
+            X[0, :, idx] = (data.signed_coherence.values * data.color.values)[first_trial:]
         elif feat == "bias":
             X[0, :, idx] = 1
         else:

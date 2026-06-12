@@ -36,11 +36,9 @@ def load_data(processed_dir: Path, color_coding: str = "01"):
         data[col] = data[col].fillna(-1).astype(int)
     if color_coding == "pm1":
         # Symmetric coding: 0 (equal) -> -1, 1 (unequal) -> +1; NaN (invalid) preserved.
+        # Must happen before process_sessions so the stim_x_color interaction (built inside
+        # prepare_input_data) uses the chosen color coding.
         data["color"] = data["color"].map({0.0: -1.0, 1.0: 1.0})
-    # Derived color x stimulus interaction (used by the *_stimXcolor_* config). Stimulus is
-    # scaled to [-1, 1] to match how prepare_input_data reads non-stimulus columns raw; uses
-    # the (possibly pm1-remapped) color so the interaction matches the chosen coding.
-    data["stim_x_color"] = (data["signed_coherence"] / 100.0) * data["color"]
     metadata = pd.read_csv(processed_dir / "processed_metadata_all_data_accu_60.csv")
     return data, metadata
 
