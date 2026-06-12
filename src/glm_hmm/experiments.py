@@ -73,8 +73,41 @@ CONFIGS: dict[str, GlmHmmConfig] = {
     #     observed_dimensions=1,
     #     n_categories=2,
     # ),
-    # No bias
+    # Selected models
     "standardized_stimulus_with_color": GlmHmmConfig(
+        current_trial_features=("stimulus", "color"),
+        prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
+        standardize_inputs=("standardized_stimulus", "color", "prev_choice", "prev_coherence", "prev_choice_coherence"),
+        add_bias=True,
+    ),
+    "normalized_stimulus_with_color": GlmHmmConfig(
+        current_trial_features=("stimulus", "color"),
+        prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
+        standardize_inputs=("color", "prev_choice", "prev_coherence", "prev_choice_coherence"),
+        add_bias=True,
+    ),
+    "no_standardization_curr_stim_color": GlmHmmConfig(
+        current_trial_features=("stimulus", "color"),
+        prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
+        add_bias=True,
+    ),
+    "no_standardization_curr_stim_color_prev_choiceXtarget": GlmHmmConfig(
+        current_trial_features=("stimulus", "color"),
+        prev_trial_features=("prev_choice", "prev_target", "prev_choice_target"),
+        add_bias=True,
+    ),
+    "no_standardization_curr_stim_color_no_prev_coh": GlmHmmConfig(
+        current_trial_features=("stimulus", "color"),
+        prev_trial_features=("prev_choice", "prev_choice_coherence"),
+        add_bias=True,
+    ),
+    "no_standardization_curr_stim_color_prev_choiceXtarget_no_prev_target": GlmHmmConfig(
+        current_trial_features=("stimulus", "color"),
+        prev_trial_features=("prev_choice", "prev_choice_target"),
+        add_bias=True,
+    ),
+    # No bias
+    "standardized_stimulus_with_color_no_bias": GlmHmmConfig(
         current_trial_features=("stimulus", "color"),
         prev_trial_features=("prev_choice", "prev_coherence", "prev_choice_coherence"),
         standardize_inputs=("standardized_stimulus", "color", "prev_choice", "prev_coherence", "prev_choice_coherence"),
