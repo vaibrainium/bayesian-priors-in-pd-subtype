@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
-# Submit the shared-basis fit as a K-sharded Slurm array, then a dependent merge.
-# The --array range is computed dynamically from --list-jobs so it always matches the
-# config's state range. Mirrors submit_glm_hmm.sh / submit_glm_hmm_finetuning.sh.
+# Submit the shared-basis pipeline as a dependency chain: a K-sharded fit array -> a merge
+# -> the K-selection metric precompute (ICL/BIC + bootstrap stability). Each step runs only
+# after the previous succeeds (afterok), so one command takes you end-to-end to the CSVs that
+# notebook 6.00 loads. The --array range is computed dynamically from --list-jobs.
 #
-# Usage: bash scripts/slurm/submit_shared_glm_hmm.sh [--config NAME] [--color 01|pm1] [--list-jobs]
-#   --config     feature variant from src.shared_glm_hmm.experiments.CONFIGS
-#                (default XY__tgt); overrides any CONFIG env var.
-#   --color      color coding: 01 (recommended) or pm1 (default 01).
-#   --list-jobs  print the K work units for the chosen config and exit WITHOUT submitting.
+# Usage: bash scripts/slurm/submit_shared_glm_hmm.sh [--config NAME] [--color 01|pm1]
+#                  [--no-stability] [--B N] [--n-iters N] [--list-jobs]
+#   --config        feature variant from src.shared_glm_hmm.experiments.CONFIGS
+#                   (default XY__tgt); overrides any CONFIG env var.
+#   --color         color coding: 01 (recommended) or pm1 (default 01).
+#   --no-stability  submit only fit + merge (skip the stability precompute).
+#   --B             bootstrap resamples per K for stability (default 30).
+#   --n-iters       EM iters per bootstrap refit for stability (default 300).
+#   --list-jobs     print the K work units for the chosen config and exit WITHOUT submitting.
 #   CONFIG=.. COLOR=.. env vars are also honored (flags win).
 #
 # Examples:
-#   bash scripts/slurm/submit_shared_glm_hmm.sh --config XY__tgt --list-jobs
 #   bash scripts/slurm/submit_shared_glm_hmm.sh --config XY__tgt
+#   bash scripts/slurm/submit_shared_glm_hmm.sh --config XY__coh --no-stability
 #   CONFIG=XY__tgt COLOR=pm1 bash scripts/slurm/submit_shared_glm_hmm.sh
 
 set -euo pipefail
@@ -23,14 +28,20 @@ source "${HOME}/bayesian-priors-in-pd-subtype/.env"
 
 CONFIG="${CONFIG:-XY__tgt}"
 COLOR="${COLOR:-01}"
+B="${B:-30}"
+NITERS="${NITERS:-300}"
 LIST_ONLY=0
+STABILITY=1
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --config)             CONFIG="$2"; shift 2 ;;
         --color|--color-coding) COLOR="$2"; shift 2 ;;
+        --no-stability)       STABILITY=0; shift ;;
+        --B)                  B="$2"; shift 2 ;;
+        --n-iters)            NITERS="$2"; shift 2 ;;
         --list-jobs)          LIST_ONLY=1; shift ;;
-        -h|--help)            sed -n '2,20p' "${BASH_SOURCE[0]}"; exit 0 ;;
+        -h|--help)            sed -n '2,24p' "${BASH_SOURCE[0]}"; exit 0 ;;
         *) echo "unknown argument: $1" >&2; exit 1 ;;
     esac
 done
@@ -77,6 +88,17 @@ MERGE_ID=$(sbatch --parsable \
     "${SCRIPT_DIR}/shared_glm_hmm_merge.slurm")
 echo "Merge     : job ${MERGE_ID}  (runs after ${FIT_ID} succeeds)"
 
+LAST_ID="${MERGE_ID}"
+if [ "${STABILITY}" -eq 1 ]; then
+    STAB_ID=$(sbatch --parsable \
+        --dependency=afterok:"${MERGE_ID}" \
+        --export=ALL,CONFIG="${CONFIG}",COLOR="${COLOR}",B="${B}",NITERS="${NITERS}" \
+        "${SCRIPT_DIR}/shared_glm_hmm_stability.slurm")
+    echo "Stability : job ${STAB_ID}  (runs after ${MERGE_ID} succeeds; B=${B}, n_iters=${NITERS})"
+    LAST_ID="${STAB_ID}"
+fi
+
 echo
-echo "When ${MERGE_ID} finishes: open notebooks/6.00 to choose K, then"
+echo "Chain submitted. When ${LAST_ID} finishes: open notebooks/6.00 (CV + ICL/BIC + stability"
+echo "CSVs are all precomputed) to choose K, then"
 echo "  bash ${SCRIPT_DIR}/submit_shared_glm_hmm_finetuning.sh <K> --config ${CONFIG} --color ${COLOR}"

@@ -17,7 +17,9 @@
 # bootstrap refits per K run in parallel (joblib n_jobs=-1, BLAS pinned), so more
 # cpus-per-task = faster. Requires the merged all_subjects.pkl to exist.
 #
-# Submit via submit_shared_glm_hmm_stability.sh. Do NOT submit directly.
+# Normally submitted automatically as the last link of the fit->merge->stability chain in
+# submit_shared_glm_hmm.sh. To recompute stability standalone on an already-merged run:
+#   CONFIG=<name> COLOR=01 B=30 NITERS=300 sbatch scripts/slurm/shared_glm_hmm_stability.slurm
 
 source "${HOME}/bayesian-priors-in-pd-subtype/.env"
 
