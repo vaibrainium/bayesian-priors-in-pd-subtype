@@ -12,7 +12,6 @@ unchanged.
 import numpy as np
 import pandas as pd
 
-from src.glm_hmm.config import GlmHmmConfig
 from src.glm_hmm.cv_utils import group_wise_fit_cv
 from src.glm_hmm.data_preparation import process_sessions
 from src.glm_hmm.fitting_utils import global_fit, group_wise_fit, session_wise_fit

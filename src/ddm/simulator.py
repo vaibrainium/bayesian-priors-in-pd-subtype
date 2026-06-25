@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import torch
 from numba import jit, prange
-from scipy.optimize import differential_evolution
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
