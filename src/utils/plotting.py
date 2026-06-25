@@ -4,6 +4,9 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from pathlib import Path
 import numpy as np
+from scipy import stats as scipy_stats
+from scipy.stats import wilcoxon
+from statsmodels.stats.multitest import multipletests
 
 BASE_DIR = Path(__file__).parent
 STYLE = BASE_DIR / "dissemination.mplstyle"
@@ -275,3 +278,133 @@ def plot_x_errorbar(xs, ys, error_lower, error_upper, colors="C0", error_width=1
         marker.set_fillstyle("none")
         bar[0].set_alpha(alpha)
         bar[0].set_linewidth(error_width)
+
+
+def add_significance_bracket(ax, x1, x2, y, p_value, bracket_height=None, fontsize=9, fmt="stars"):
+    """Draw a significance bracket between two x positions.
+
+    Parameters
+    ----------
+    fmt : str
+        'stars' → *** / ** / * / ns  |  'p' → 'p = 0.032'  |  'p<' → 'p < 0.001'
+    bracket_height : float or None
+        Tick height. Defaults to 1 % of the current y-range.
+    """
+    ylim = ax.get_ylim()
+    if bracket_height is None:
+        bracket_height = (ylim[1] - ylim[0]) * 0.01
+
+    ax.plot([x1, x1, x2, x2], [y, y + bracket_height, y + bracket_height, y],
+            color="k", lw=1, clip_on=False)
+
+    if fmt == "stars":
+        if p_value < 0.001:
+            label = "***"
+        elif p_value < 0.01:
+            label = "**"
+        elif p_value < 0.05:
+            label = "*"
+        else:
+            label = "ns"
+    elif fmt == "p":
+        label = f"p = {p_value:.3f}"
+    else:
+        label = "p < 0.001" if p_value < 0.001 else f"p = {p_value:.3f}"
+
+    ax.text((x1 + x2) / 2, y + bracket_height * 1.5, label,
+            ha="center", va="bottom", fontsize=fontsize)
+
+
+def bar_plot_with_significance(
+    ax,
+    data,
+    sig_pairs=None,
+    colors=None,
+    hatches=None,
+    bar_width=0.6,
+    positions=None,
+    correction="bonferroni",
+    bracket_pad=0.05,
+    bracket_fmt="stars",
+    alpha=0.05,
+    **bar_kwargs,
+):
+    """Bar plot with SEM error bars and optional significance brackets.
+
+    Parameters
+    ----------
+    data : dict
+        {label: array_of_values} — mean and SEM are computed from the array.
+    sig_pairs : list of tuples, optional
+        Each entry is either:
+          (label1, label2)           — Wilcoxon is run automatically; Bonferroni
+                                       correction applied across all auto pairs.
+          (label1, label2, p_value)  — use pre-computed p_value; no correction.
+    colors : dict or str, optional
+        {label: color} mapping, or a single color applied to all bars.
+    hatches : dict, optional
+        {label: hatch} mapping.
+    positions : list, optional
+        x positions for each bar. Defaults to 0, 1, 2, …
+    correction : str
+        multipletests method used when sig_pairs are auto-computed.
+    bracket_pad : float
+        Extra vertical gap between the tallest bar+SEM and the first bracket.
+    bracket_fmt : str
+        Passed to add_significance_bracket — 'stars', 'p', or 'p<'.
+    alpha : float
+        Significance level (reserved for future use).
+    **bar_kwargs
+        Forwarded to ax.bar (e.g. edgecolor, linewidth).
+
+    Returns
+    -------
+    dict mapping each label to its x position.
+    """
+    labels = list(data.keys())
+    if positions is None:
+        positions = list(range(len(labels)))
+    pos_map = dict(zip(labels, positions))
+
+    bar_kwargs.setdefault("edgecolor", "k")
+    bar_kwargs.setdefault("linewidth", 1)
+
+    tops = {}
+    for label, pos in pos_map.items():
+        vals = np.asarray(data[label])
+        mean = np.nanmean(vals)
+        sem  = scipy_stats.sem(vals, nan_policy="omit")
+
+        color = (colors.get(label, "steelblue") if isinstance(colors, dict) else (colors or "steelblue"))
+        hatch = hatches.get(label, "") if hatches else ""
+
+        ax.bar(pos, mean, width=bar_width, color=color, hatch=hatch, **bar_kwargs)
+        ax.errorbar(pos, mean, yerr=sem, fmt="none", color="k",
+                    capsize=6, elinewidth=2, capthick=2)
+        tops[label] = mean + sem
+
+    if sig_pairs:
+        auto_pairs   = [t for t in sig_pairs if len(t) == 2]
+        manual_pairs = [t for t in sig_pairs if len(t) == 3]
+
+        computed_p = {}
+        if auto_pairs:
+            p_vals   = [wilcoxon(data[a], data[b]).pvalue for a, b in auto_pairs]
+            corrected = multipletests(p_vals, method=correction)[1]
+            computed_p = {(a, b): cp for (a, b), cp in zip(auto_pairs, corrected)}
+
+        all_pairs = [(a, b, computed_p[(a, b)]) for a, b in auto_pairs] + list(manual_pairs)
+
+        bracket_y    = max(tops.values()) + bracket_pad
+        bracket_step = bracket_pad * 1.8
+
+        for a, b, p in all_pairs:
+            add_significance_bracket(ax, pos_map[a], pos_map[b], bracket_y, p, fmt=bracket_fmt)
+            bracket_y += bracket_step
+
+    ax.set_xticks(positions)
+    ax.set_xticklabels(labels)
+    for sp in ["top", "right"]:
+        ax.spines[sp].set_visible(False)
+
+    return pos_map
