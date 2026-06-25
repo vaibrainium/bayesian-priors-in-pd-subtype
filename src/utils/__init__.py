@@ -2,6 +2,10 @@ class basic_utils:
     from .basic import load_model, raise_error, save_model
 
 
+class classification_utils:
+    from .classification import get_subject_classification_ids
+
+
 class plot_utils:
     from .plotting import (
         figure_by_height,

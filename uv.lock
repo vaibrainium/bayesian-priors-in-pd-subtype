@@ -1718,6 +1718,19 @@ wheels = [
 ]
 
 [[package]]
+name = "hdf5storage"
+version = "0.2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "h5py" },
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f3/ae/0180450929889340ae4fdbbd2b4fe979bb79505bf35a6fa7ad725cb0b43a/hdf5storage-0.2.2.tar.gz", hash = "sha256:6cfd031aeba0fdfb9fb1db2aa75b09a8d6b845c98745b4a2c0c8d8d752d58fe7", size = 83213, upload-time = "2025-09-30T16:57:57.817Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4a/8e/d20c50365cd7b2e01bd1a0ed996f159e1d40fbc6d1714026f16fe6639449/hdf5storage-0.2.2-py3-none-any.whl", hash = "sha256:7f6f9a0bab1c3d9967da6dcbdefa30cf8ec0b3cef86810c6aaad3da5c498aa12", size = 77614, upload-time = "2025-09-30T16:57:56.448Z" },
+]
+
+[[package]]
 name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
@@ -5245,6 +5258,7 @@ dependencies = [
     { name = "flake8" },
     { name = "graphviz" },
     { name = "h5py" },
+    { name = "hdf5storage" },
     { name = "ipykernel" },
     { name = "ipywidgets" },
     { name = "isort" },
@@ -5298,6 +5312,7 @@ requires-dist = [
     { name = "flake8", specifier = "==7.3.0" },
     { name = "graphviz", specifier = "==0.21" },
     { name = "h5py", specifier = "==3.16.0" },
+    { name = "hdf5storage", specifier = ">=0.2.2" },
     { name = "ipykernel", specifier = ">=7.2.0" },
     { name = "ipywidgets", specifier = "==8.1.8" },
     { name = "isort", specifier = "==8.0.1" },
