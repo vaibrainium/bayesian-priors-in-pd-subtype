@@ -26,7 +26,7 @@ from .likelihood_calculator import LikelihoodCalculator
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-SIGNED_COH_COL : int = 0  # column index of coherence in the stimulus array
+SIGNED_COH_COL: int = 0  # column index of coherence in the stimulus array
 
 REQUIRED = {
     "ndt",
@@ -45,6 +45,7 @@ REQUIRED = {
 # ---------------------------------------------------------------------------
 # Parameters as plain dict
 # ---------------------------------------------------------------------------
+
 
 def validate_params(p: dict) -> None:
     for k in REQUIRED:
@@ -65,11 +66,14 @@ def validate_params(p: dict) -> None:
     if not (0 <= p["sz"] < 1):
         raise ValueError(f"Invalid sz (starting point variability): {p['sz']}")
 
+
 @dataclass
 class FreeParam:
     """Default value and (lo, hi) bounds for a single free parameter."""
+
     lower_bound: float
     upper_bound: float
+
 
 @dataclass
 class FixedParam:
@@ -79,6 +83,7 @@ class FixedParam:
 # ---------------------------------------------------------------------------
 # Abstract fitting engine
 # ---------------------------------------------------------------------------
+
 
 class DecisionModel:
     """
@@ -121,16 +126,10 @@ class DecisionModel:
     def _validate_configuration(self):
         for k, v in self._free_params.items():
             if not isinstance(v, FreeParam):
-                raise ValueError(
-                    f"free_params['{k}'] must be a FreeParam, got {type(v).__name__}. "
-                    "Did you swap free_params and fixed_params?"
-                )
+                raise ValueError(f"free_params['{k}'] must be a FreeParam, got {type(v).__name__}. Did you swap free_params and fixed_params?")
         for k, v in self.fixed_params.items():
             if not isinstance(v, FixedParam):
-                raise ValueError(
-                    f"fixed_params['{k}'] must be a FixedParam, got {type(v).__name__}. "
-                    "Did you swap free_params and fixed_params?"
-                )
+                raise ValueError(f"fixed_params['{k}'] must be a FixedParam, got {type(v).__name__}. Did you swap free_params and fixed_params?")
         overlap = set(self._free_params) & set(self.fixed_params)
         if overlap:
             raise ValueError(f"Parameters both fixed and fitted: {overlap}")
@@ -145,9 +144,7 @@ class DecisionModel:
     def _build_params(self, values):
 
         if len(values) != len(self.fit_keys):
-            raise ValueError(
-                f"Expected {len(self.fit_keys)} values, got {len(values)}"
-            )
+            raise ValueError(f"Expected {len(self.fit_keys)} values, got {len(values)}")
 
         p = {}
         for key, val in self.fixed_params.items():
@@ -192,14 +189,17 @@ class DecisionModel:
         for rep in range(n_reps):
             if self._precomputed is not None:
                 rep_noise = self._precomputed["unit_noise"][rep]
-                rep_sv    = self._precomputed["unit_sv"][rep]
-                rep_sz    = self._precomputed["unit_sz"][rep]
+                rep_sv = self._precomputed["unit_sv"][rep]
+                rep_sz = self._precomputed["unit_sz"][rep]
             else:
                 rep_noise = rep_sv = rep_sz = None
             try:
                 sim = self.simulator.simulate_trials(
-                    stimulus, params,
-                    unit_noise=rep_noise, unit_sv=rep_sv, unit_sz=rep_sz,
+                    stimulus,
+                    params,
+                    unit_noise=rep_noise,
+                    unit_sv=rep_sv,
+                    unit_sz=rep_sz,
                 )
             except Exception as exc:
                 logger.warning("Simulation failed: %s", exc)
@@ -240,7 +240,7 @@ class DecisionModel:
         if not self.fit_keys:
             raise ValueError("No fitted parameters specified.")
 
-        specs  = self.fit_param_specs
+        specs = self.fit_param_specs
         bounds = [(s.lower_bound, s.upper_bound) for s in specs.values()]
 
         self._set_seed(self.seed)
@@ -252,7 +252,7 @@ class DecisionModel:
         n_trials, n_timepoints = stimulus.shape
         self._precomputed = self.simulator.precompute_noise(n_trials, n_timepoints, n_reps=n_reps)
 
-        best_nll  = [np.inf]
+        best_nll = [np.inf]
         best_vals = [None]
 
         def objective(values: np.ndarray) -> float:
@@ -269,7 +269,10 @@ class DecisionModel:
             params_str = "  ".join(f"{k}={v:.4f}" for k, v in zip(self.fit_keys, best_vals[0]))
             logger.info(
                 "Iter %3d | NLL=%.4f | convergence=%.4f | %s",
-                iteration[0], best_nll[0], convergence, params_str,
+                iteration[0],
+                best_nll[0],
+                convergence,
+                params_str,
             )
 
         with warnings.catch_warnings():
@@ -279,14 +282,14 @@ class DecisionModel:
                 objective,
                 bounds=bounds,
                 maxiter=max_iterations,
-                popsize=15,          # modest bump from 10; cheap insurance for the
-                                     # 9-10 dim space, not the main fix.
+                popsize=15,  # modest bump from 10; cheap insurance for the
+                # 9-10 dim space, not the main fix.
                 seed=self.seed,
-                polish=False,        # the built-in polish is L-BFGS-B, which needs
-                                     # finite-difference gradients. On a CRN
-                                     # simulation objective those are ~0 for
-                                     # sub-dt perturbations, so the polish is at
-                                     # best a no-op and at worst misleading.
+                polish=False,  # the built-in polish is L-BFGS-B, which needs
+                # finite-difference gradients. On a CRN
+                # simulation objective those are ~0 for
+                # sub-dt perturbations, so the polish is at
+                # best a no-op and at worst misleading.
                 disp=False,
                 callback=callback if verbose else None,
             )
@@ -310,7 +313,7 @@ class DecisionModel:
         # and the running best tracked inside `objective`. Never trust a single
         # optimizer's reported x over a better value we already evaluated.
         candidates = [
-            (float(de_result.fun),     np.asarray(de_result.x, dtype=float)),
+            (float(de_result.fun), np.asarray(de_result.x, dtype=float)),
             (float(refine_result.fun), np.asarray(refine_result.x, dtype=float)),
         ]
         if best_vals[0] is not None:
@@ -332,12 +335,12 @@ class DecisionModel:
             self.optimization_result_ = de_result
 
         return {
-            "success":              success,
-            "parameters":           best,
-            "likelihood":           best_fun,
-            "n_iterations":         int(getattr(de_result, "nit", 0)),
-            "optimization_result":  de_result,
-            "refine_result":        refine_result,
+            "success": success,
+            "parameters": best,
+            "likelihood": best_fun,
+            "n_iterations": int(getattr(de_result, "nit", 0)),
+            "optimization_result": de_result,
+            "refine_result": refine_result,
         }
 
     def simulate(
@@ -366,9 +369,10 @@ class DecisionModel:
                 all_choice.append(simulation["choice"])
                 all_coherences.append(simulation["signed_coherence"])
 
-
-            return pd.DataFrame({
-                "rt":        np.concatenate(all_rt),
-                "choice":    np.concatenate(all_choice),
-                "signed_coherence": np.concatenate(all_coherences),
-            })
+            return pd.DataFrame(
+                {
+                    "rt": np.concatenate(all_rt),
+                    "choice": np.concatenate(all_choice),
+                    "signed_coherence": np.concatenate(all_coherences),
+                }
+            )

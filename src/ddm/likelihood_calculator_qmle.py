@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class LikelihoodCalculator:
     def __init__(self, nbins=9, rt_nllh_weight=1.0):
         """
@@ -74,8 +75,7 @@ class LikelihoodCalculator:
             nllh -= n_cat_data * np.log(p_cat_model + self.eps)
         return nllh
 
-    def compute_nll(self, rt_pred_or_prediction, choice_pred_or_data=None,
-                    rt_data=None, choice_data=None, coh_pred=None, coh_data=None):
+    def compute_nll(self, rt_pred_or_prediction, choice_pred_or_data=None, rt_data=None, choice_data=None, coh_pred=None, coh_data=None):
         """
         Computes Ratcliff-style QMLE negative log likelihood summed over coherence × choice subsets.
 

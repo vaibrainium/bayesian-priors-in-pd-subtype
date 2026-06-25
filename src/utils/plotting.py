@@ -21,20 +21,24 @@ COLORS = [CMAP(i / 4.0) for i in range(5)]
 COLORS_NEUTRAL = ["0.0", "0.4", "0.7", "1.0"]
 STYLE_SETTINGS = ["dark_background", "presentation"]
 
+
 # Apply default rcParams for consistent font sizes
 def setup():
     """Apply general Matplotlib style and settings."""
-    matplotlib.rcParams.update({
-        "font.size": FONTSIZE,
-        "axes.titlesize": FONTSIZE,
-        "axes.labelsize": FONTSIZE,
-        "xtick.labelsize": FONTSIZE,
-        "ytick.labelsize": FONTSIZE,
-        "legend.fontsize": FONTSIZE,
-        "figure.titlesize": FONTSIZE,
-        "figure.dpi": 300,
-        "savefig.dpi": 300,
-    })
+    matplotlib.rcParams.update(
+        {
+            "font.size": FONTSIZE,
+            "axes.titlesize": FONTSIZE,
+            "axes.labelsize": FONTSIZE,
+            "xtick.labelsize": FONTSIZE,
+            "ytick.labelsize": FONTSIZE,
+            "legend.fontsize": FONTSIZE,
+            "figure.titlesize": FONTSIZE,
+            "figure.dpi": 300,
+            "savefig.dpi": 300,
+        }
+    )
+
 
 # Helper function for margin calculation
 def _calculate_margins(large_margin, small_margin, left_margin_large, right_margin_large, top_margin_large, bottom_margin_large):
@@ -43,9 +47,10 @@ def _calculate_margins(large_margin, small_margin, left_margin_large, right_marg
         "left": large_margin if left_margin_large else small_margin,
         "right": large_margin if right_margin_large else small_margin,
         "top": large_margin if top_margin_large else small_margin,
-        "bottom": large_margin if bottom_margin_large else small_margin
+        "bottom": large_margin if bottom_margin_large else small_margin,
     }
     return margins
+
 
 # Helper function to calculate figure size based on margins
 def _calculate_figure_size(width, height, margins, aspect_ratio=1.0):
@@ -58,6 +63,7 @@ def _calculate_figure_size(width, height, margins, aspect_ratio=1.0):
         width = height * aspect_ratio
 
     return width, height
+
 
 # Create figure by specifying height
 def figure_by_height(
@@ -76,17 +82,18 @@ def figure_by_height(
 
     fig = plt.figure(figsize=(width, height))
     ax = Axes3D(fig) if make3d else plt.gca()
-    
+
     plt.subplots_adjust(
-        left=margins['left'],
-        right=1.0 - margins['right'],
-        bottom=margins['bottom'],
-        top=1.0 - margins['top'],
+        left=margins["left"],
+        right=1.0 - margins["right"],
+        bottom=margins["bottom"],
+        top=1.0 - margins["top"],
         wspace=0.0,
         hspace=0.0,
     )
 
     return fig, ax
+
 
 # Create figure by specifying width
 def figure_by_width(
@@ -107,15 +114,16 @@ def figure_by_width(
     ax = Axes3D(fig) if make3d else plt.gca()
 
     plt.subplots_adjust(
-        left=margins['left'],
-        right=1.0 - margins['right'],
-        bottom=margins['bottom'],
-        top=1.0 - margins['top'],
+        left=margins["left"],
+        right=1.0 - margins["right"],
+        bottom=margins["bottom"],
+        top=1.0 - margins["top"],
         wspace=0.0,
         hspace=0.0,
     )
 
     return fig, ax
+
 
 # Create figure with colorbar by specifying height
 def figure_with_cbar_by_height(
@@ -142,12 +150,12 @@ def figure_with_cbar_by_height(
 
     fig = plt.figure(figsize=(width, height))
     ax = Axes3D(fig) if make3d else plt.gca()
-    
+
     plt.subplots_adjust(
-        left=margins['left'] * height / width,
+        left=margins["left"] * height / width,
         right=1.0 - right * height / width,
-        bottom=margins['bottom'],
-        top=1.0 - margins['top'],
+        bottom=margins["bottom"],
+        top=1.0 - margins["top"],
         wspace=0.0,
         hspace=0.0,
     )
@@ -156,6 +164,7 @@ def figure_with_cbar_by_height(
     plt.sca(ax)
 
     return fig, (ax, cax)
+
 
 # Grid of panels, no colorbars, size specified by height
 def grid_by_height(
@@ -173,9 +182,9 @@ def grid_by_height(
 ):
     """Create a grid of panels with consistent margins."""
     margins = _calculate_margins(large_margin, small_margin, left_margin_large, right_margin_large, top_margin_large, bottom_margin_large)
-    
-    panel_size = (1.0 - margins['top'] - margins['bottom'] - (ny - 1) * sep) / ny
-    width = height * aspect_ratio * (margins['left'] + nx * panel_size + (nx - 1) * sep + margins['right'])
+
+    panel_size = (1.0 - margins["top"] - margins["bottom"] - (ny - 1) * sep) / ny
+    width = height * aspect_ratio * (margins["left"] + nx * panel_size + (nx - 1) * sep + margins["right"])
     avg_width_abs = (height * panel_size * nx * ny) / (nx * ny + ny)
     avg_height_abs = height * panel_size
     wspace = sep * height / avg_width_abs
@@ -184,14 +193,15 @@ def grid_by_height(
     fig = plt.figure(figsize=(width, height))
     gs = gridspec.GridSpec(ny, nx, width_ratios=[1.0] * nx, height_ratios=[1.0] * ny)
     plt.subplots_adjust(
-        left=margins['left'] * height / width,
-        right=1.0 - margins['right'] * height / width,
-        bottom=margins['bottom'],
-        top=1.0 - margins['top'],
+        left=margins["left"] * height / width,
+        right=1.0 - margins["right"] * height / width,
+        bottom=margins["bottom"],
+        top=1.0 - margins["top"],
         wspace=wspace,
         hspace=hspace,
     )
     return fig, gs
+
 
 def grid_by_width(
     nx=4,
@@ -236,12 +246,14 @@ def grid_by_width(
     )
     return fig, gs
 
+
 # Add scatter plot with consistent styling
 def plot_scatter(xs, ys, **scatter_kwargs):
     """Plot a scatter plot with consistent styling."""
     defaults = {"alpha": 0.6, "lw": 3, "s": 80, "color": "C0", "facecolors": "none", "marker": "."}
     scatter_kwargs = {**defaults, **scatter_kwargs}
     plt.scatter(xs, ys, **scatter_kwargs)
+
 
 # Plot a line with consistent styling
 def plot_line(xs, ys, **plot_kwargs):
@@ -253,27 +265,25 @@ def plot_line(xs, ys, **plot_kwargs):
     plt.plot(xs, ys, **background_plot_kwargs, zorder=30)
     plt.plot(xs, ys, **plot_kwargs, zorder=31)
 
+
 # Plot error bars (vertical)
 def plot_errorbar(xs, ys, error_lower, error_upper, colors="C0", error_width=12, alpha=0.3):
     """Plot vertical error bars with consistent styling."""
     colors = [colors] * len(xs) if isinstance(colors, str) else colors
     for ii, (x, y, err_l, err_u) in enumerate(zip(xs, ys, error_lower, error_upper)):
-        marker, _, bar = plt.errorbar(
-            x=x, y=y, yerr=np.array((err_l, err_u))[:, None], ls="none", color=colors[ii], zorder=1
-        )
+        marker, _, bar = plt.errorbar(x=x, y=y, yerr=np.array((err_l, err_u))[:, None], ls="none", color=colors[ii], zorder=1)
         plt.setp(bar[0], capstyle="round")
         marker.set_fillstyle("none")
         bar[0].set_alpha(alpha)
         bar[0].set_linewidth(error_width)
+
 
 # Plot error bars (horizontal)
 def plot_x_errorbar(xs, ys, error_lower, error_upper, colors="C0", error_width=12, alpha=0.3):
     """Plot horizontal error bars with consistent styling."""
     colors = [colors] * len(xs) if isinstance(colors, str) else colors
     for ii, (x, y, err_l, err_u) in enumerate(zip(xs, ys, error_lower, error_upper)):
-        marker, _, bar = plt.errorbar(
-            x=x, y=y, xerr=np.array((err_l, err_u))[:, None], ls="none", color=colors[ii], zorder=1
-        )
+        marker, _, bar = plt.errorbar(x=x, y=y, xerr=np.array((err_l, err_u))[:, None], ls="none", color=colors[ii], zorder=1)
         plt.setp(bar[0], capstyle="round")
         marker.set_fillstyle("none")
         bar[0].set_alpha(alpha)
@@ -294,8 +304,7 @@ def add_significance_bracket(ax, x1, x2, y, p_value, bracket_height=None, fontsi
     if bracket_height is None:
         bracket_height = (ylim[1] - ylim[0]) * 0.01
 
-    ax.plot([x1, x1, x2, x2], [y, y + bracket_height, y + bracket_height, y],
-            color="k", lw=1, clip_on=False)
+    ax.plot([x1, x1, x2, x2], [y, y + bracket_height, y + bracket_height, y], color="k", lw=1, clip_on=False)
 
     if fmt == "stars":
         if p_value < 0.001:
@@ -311,8 +320,7 @@ def add_significance_bracket(ax, x1, x2, y, p_value, bracket_height=None, fontsi
     else:
         label = "p < 0.001" if p_value < 0.001 else f"p = {p_value:.3f}"
 
-    ax.text((x1 + x2) / 2, y + bracket_height * 1.5, label,
-            ha="center", va="bottom", fontsize=fontsize)
+    ax.text((x1 + x2) / 2, y + bracket_height * 1.5, label, ha="center", va="bottom", fontsize=fontsize)
 
 
 def bar_plot_with_significance(
@@ -373,29 +381,28 @@ def bar_plot_with_significance(
     for label, pos in pos_map.items():
         vals = np.asarray(data[label])
         mean = np.nanmean(vals)
-        sem  = scipy_stats.sem(vals, nan_policy="omit")
+        sem = scipy_stats.sem(vals, nan_policy="omit")
 
-        color = (colors.get(label, "steelblue") if isinstance(colors, dict) else (colors or "steelblue"))
+        color = colors.get(label, "steelblue") if isinstance(colors, dict) else (colors or "steelblue")
         hatch = hatches.get(label, "") if hatches else ""
 
         ax.bar(pos, mean, width=bar_width, color=color, hatch=hatch, **bar_kwargs)
-        ax.errorbar(pos, mean, yerr=sem, fmt="none", color="k",
-                    capsize=6, elinewidth=2, capthick=2)
+        ax.errorbar(pos, mean, yerr=sem, fmt="none", color="k", capsize=6, elinewidth=2, capthick=2)
         tops[label] = mean + sem
 
     if sig_pairs:
-        auto_pairs   = [t for t in sig_pairs if len(t) == 2]
+        auto_pairs = [t for t in sig_pairs if len(t) == 2]
         manual_pairs = [t for t in sig_pairs if len(t) == 3]
 
         computed_p = {}
         if auto_pairs:
-            p_vals   = [wilcoxon(data[a], data[b]).pvalue for a, b in auto_pairs]
+            p_vals = [wilcoxon(data[a], data[b]).pvalue for a, b in auto_pairs]
             corrected = multipletests(p_vals, method=correction)[1]
             computed_p = {(a, b): cp for (a, b), cp in zip(auto_pairs, corrected)}
 
         all_pairs = [(a, b, computed_p[(a, b)]) for a, b in auto_pairs] + list(manual_pairs)
 
-        bracket_y    = max(tops.values()) + bracket_pad
+        bracket_y = max(tops.values()) + bracket_pad
         bracket_step = bracket_pad * 1.8
 
         for a, b, p in all_pairs:

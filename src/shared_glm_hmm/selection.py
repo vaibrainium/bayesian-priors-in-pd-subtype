@@ -135,10 +135,7 @@ def bootstrap_state_stability(bundle, state_range=None, B=20, n_iters=300, seed=
         ref_w = -ref_model.observations.params[:, 0, :]  # (K, M)
 
         with threadpool_limits(limits=1):
-            corrs = Parallel(n_jobs=n_jobs)(
-                delayed(_one_bootstrap)(obs, inp, msk, init_flat, K, n_iters, prior_sigma, ref_w, seed + b)
-                for b in range(B)
-            )
+            corrs = Parallel(n_jobs=n_jobs)(delayed(_one_bootstrap)(obs, inp, msk, init_flat, K, n_iters, prior_sigma, ref_w, seed + b) for b in range(B))
         corrs = np.array(corrs)
         rows.append(dict(state=K, mean_stability=float(corrs.mean()), sem_stability=float(corrs.std() / np.sqrt(B)), B=B))
 

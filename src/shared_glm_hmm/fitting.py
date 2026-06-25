@@ -136,7 +136,9 @@ def finetune_pooled(bundle, best_k, n_iters=2500):
         "transition_matrices": {idx: init.transitions.params for idx in range(len(sessions))},
     }
     models_s, fit_lls_s = session_wise_fit(
-        observations, inputs, masks,
+        observations,
+        inputs,
+        masks,
         n_sessions=len(sessions),
         init_params=init_params,
         n_states=best_k,
@@ -150,8 +152,13 @@ def finetune_pooled(bundle, best_k, n_iters=2500):
     }
 
     pooled_model, pooled_fit_ll = group_wise_fit(
-        observations, inputs, masks, init_flat,
-        n_states=best_k, n_iters=n_iters, prior_sigma=prior_sigma,
+        observations,
+        inputs,
+        masks,
+        init_flat,
+        n_states=best_k,
+        n_iters=n_iters,
+        prior_sigma=prior_sigma,
     )
     result["pooled"] = pooled_model
     result["pooled_fit_ll"] = pooled_fit_ll

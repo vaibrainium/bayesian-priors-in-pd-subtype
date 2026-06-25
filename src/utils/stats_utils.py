@@ -67,8 +67,7 @@ def wilcoxon_battery(
         if label:
             print(f"Group: {label}")
         for _, row in df.iterrows():
-            print(f"  {row['test']}: p = {row['p']:.3f}, corrected p = {row['corrected_p']:.3f}, "
-                  f"cohen_d = {row['cohen_d']:.2f}, power = {row['power']:.2f}  (n={int(row['n'])})")
+            print(f"  {row['test']}: p = {row['p']:.3f}, corrected p = {row['corrected_p']:.3f}, cohen_d = {row['cohen_d']:.2f}, power = {row['power']:.2f}  (n={int(row['n'])})")
         print()
 
     return df

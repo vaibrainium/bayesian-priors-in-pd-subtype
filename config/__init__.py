@@ -15,11 +15,12 @@ from omegaconf import OmegaConf
 def load_config(filename):
     return OmegaConf.load(Path(__file__).parent / filename)
 
+
 def load_json(filename):
-    with open(Path(__file__).parent / filename, 'r') as file:
+    with open(Path(__file__).parent / filename, "r") as file:
         return json.load(file)
 
 
 # Example of accessing a specific configuration file
-dir_config = load_config('dir-config.yaml')
-main_config = load_config('main.yaml')
+dir_config = load_config("dir-config.yaml")
+main_config = load_config("main.yaml")

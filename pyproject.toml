@@ -77,3 +77,8 @@ explicit = true
 torch = [{ index = "pytorch-cu121" }]
 torchvision = [{ index = "pytorch-cu121" }]
 torchaudio = [{ index = "pytorch-cu121" }]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.20",
+]

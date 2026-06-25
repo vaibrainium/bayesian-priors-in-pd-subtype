@@ -14,11 +14,12 @@ logger = logging.getLogger(__name__)
 # Private backends
 # ---------------------------------------------------------------------------
 
+
 @jit(nopython=True, parallel=True)
 def _simulate_ddm_trials_numba(
     stimulus: np.ndarray,
     noise: np.ndarray,
-    sv_draws: np.ndarray,   # (n_trials,) per-trial drift offset ~ N(0, sv)
+    sv_draws: np.ndarray,  # (n_trials,) per-trial drift offset ~ N(0, sv)
     z_offsets: np.ndarray,  # (n_trials,) per-trial z offset ~ Uniform(-sz/2, sz/2)
     drift_gain: float,
     drift_offset: float,
@@ -44,7 +45,7 @@ def _simulate_ddm_trials_numba(
                 break
 
             drift = (drift_gain * stimulus[trial, t - 1] + trial_drift_offset) * dt
-            leak  = leak_rate * (evidence - starting_point) * dt
+            leak = leak_rate * (evidence - starting_point) * dt
             evidence += drift + noise[trial, t - 1] - leak
 
             if time_constant != 0.0:
@@ -69,7 +70,9 @@ class _NumbaSimulator:
     """Numba JIT backend — fastest on CPU due to per-trial early termination."""
 
     def simulate_trials(
-        self, stimulus: np.ndarray, params: dict,
+        self,
+        stimulus: np.ndarray,
+        params: dict,
         unit_noise: np.ndarray | None = None,
         unit_sv: np.ndarray | None = None,
         unit_sz: np.ndarray | None = None,
@@ -96,10 +99,18 @@ class _NumbaSimulator:
             z_offsets = np.zeros(n_trials, dtype=np.float32)
 
         return _simulate_ddm_trials_numba(
-            stim, noise, sv_draws, z_offsets,
-            params["drift_gain"], params["drift_offset"],
-            params["a"], params["z"], params["ndt"], params["dt"],
-            params["leak_rate"], params["time_constant"],
+            stim,
+            noise,
+            sv_draws,
+            z_offsets,
+            params["drift_gain"],
+            params["drift_offset"],
+            params["a"],
+            params["z"],
+            params["ndt"],
+            params["dt"],
+            params["leak_rate"],
+            params["time_constant"],
         )
 
 
@@ -114,12 +125,12 @@ class _TorchSimulator:
     """
 
     def __init__(self, device: str | None = None):
-        self.device = torch.device(
-            device if device else ("cuda" if torch.cuda.is_available() else "cpu")
-        )
+        self.device = torch.device(device if device else ("cuda" if torch.cuda.is_available() else "cpu"))
 
     def simulate_trials(
-        self, stimulus: np.ndarray | torch.Tensor, params: dict,
+        self,
+        stimulus: np.ndarray | torch.Tensor,
+        params: dict,
         unit_noise: np.ndarray | None = None,
         unit_sv: np.ndarray | None = None,
         unit_sz: np.ndarray | None = None,
@@ -135,7 +146,7 @@ class _TorchSimulator:
             key = (ptr, stimulus.shape)
             if getattr(self, "_stim_cache_key", None) != key:
                 self._stim_cache_key = key
-                self._stim_cache     = torch.tensor(stimulus, device=dev, dtype=torch.float32)
+                self._stim_cache = torch.tensor(stimulus, device=dev, dtype=torch.float32)
             stim = self._stim_cache
 
         if stim.numel() == 0:
@@ -144,21 +155,21 @@ class _TorchSimulator:
         n_trials, n_timepoints = stim.shape
         T = n_timepoints - 1
 
-        a             = float(params["a"])
-        z             = float(params["z"])
-        ndt           = float(params["ndt"])
-        drift_gain    = float(params["drift_gain"])
-        drift_offset  = float(params["drift_offset"])
-        variance      = float(params["variance"])
-        dt            = float(params["dt"])
-        leak_rate     = float(params["leak_rate"])
+        a = float(params["a"])
+        z = float(params["z"])
+        ndt = float(params["ndt"])
+        drift_gain = float(params["drift_gain"])
+        drift_offset = float(params["drift_offset"])
+        variance = float(params["variance"])
+        dt = float(params["dt"])
+        leak_rate = float(params["leak_rate"])
         time_constant = float(params["time_constant"])
-        sv            = float(params.get("sv", 0.0))
-        sz            = float(params.get("sz", 0.0))
+        sv = float(params.get("sv", 0.0))
+        sz = float(params.get("sz", 0.0))
 
         noise_std = (variance * dt) ** 0.5
 
-        valid     = ~torch.isnan(stim[:, 1:])                                          # (N, T)
+        valid = ~torch.isnan(stim[:, 1:])  # (N, T)
         drift_inc = torch.nan_to_num((drift_gain * stim[:, :-1] + drift_offset) * dt)  # (N, T)
 
         # sv: per-trial drift variability — add a constant offset to each trial's drift
@@ -171,8 +182,8 @@ class _TorchSimulator:
                     self._sv_cache = torch.tensor(unit_sv, device=dev, dtype=torch.float32)
                 sv_draws = self._sv_cache.unsqueeze(1) * sv
             else:
-                sv_draws = torch.randn(n_trials, 1, device=dev) * sv                 # (N, 1)
-            drift_inc = drift_inc + sv_draws * dt                                    # broadcast over T
+                sv_draws = torch.randn(n_trials, 1, device=dev) * sv  # (N, 1)
+            drift_inc = drift_inc + sv_draws * dt  # broadcast over T
 
         # sz: per-trial starting point variability — Uniform(z - sz/2, z + sz/2)
         if sz > 0.0:
@@ -185,10 +196,10 @@ class _TorchSimulator:
                 z_offsets = (self._sz_cache - 0.5) * sz
             else:
                 z_offsets = (torch.rand(n_trials, device=dev) - 0.5) * sz
-            z_trials  = torch.clamp(z + z_offsets, 0.01, 0.99)
-            sp        = (z_trials * a).unsqueeze(1)                                  # (N, 1)
+            z_trials = torch.clamp(z + z_offsets, 0.01, 0.99)
+            sp = (z_trials * a).unsqueeze(1)  # (N, 1)
         else:
-            sp = z * a                                                                # scalar
+            sp = z * a  # scalar
 
         if unit_noise is not None:
             # Cache the per-rep noise slice on GPU to avoid repeated CPU→GPU transfers.
@@ -199,9 +210,9 @@ class _TorchSimulator:
             if getattr(self, "_noise_cache_key", None) != nkey:
                 self._noise_cache_key = nkey
                 self._noise_cache = torch.tensor(unit_noise, device=dev, dtype=torch.float32)
-            noise_inc = self._noise_cache * noise_std                                  # (N, T)
+            noise_inc = self._noise_cache * noise_std  # (N, T)
         else:
-            noise_inc = torch.randn(n_trials, T, device=dev) * noise_std              # (N, T)
+            noise_inc = torch.randn(n_trials, T, device=dev) * noise_std  # (N, T)
 
         if leak_rate == 0.0:
             evidence = sp + torch.cumsum((drift_inc + noise_inc) * valid, dim=1)
@@ -213,44 +224,40 @@ class _TorchSimulator:
             #   e[t] = αᵗ·sp  +  Σ_{j=0}^{t-1} α^{t-1-j} · b[j]
             #        = αᵗ·sp  +  (b ★ w)[t-1]   where w[k] = αᵏ
             # ------------------------------------------------------------------
-            α   = 1.0 - leak_rate * dt
-            b   = (drift_inc + noise_inc + sp * leak_rate * dt) * valid       # (N, T)
+            α = 1.0 - leak_rate * dt
+            b = (drift_inc + noise_inc + sp * leak_rate * dt) * valid  # (N, T)
 
-            fft_n = 1 << (2 * T - 1).bit_length()   # next power-of-2 ≥ 2T-1
-            k     = torch.arange(T, device=dev, dtype=torch.float32)
-            w     = torch.tensor(α, device=dev, dtype=torch.float32).pow(k)   # (T,)
+            fft_n = 1 << (2 * T - 1).bit_length()  # next power-of-2 ≥ 2T-1
+            k = torch.arange(T, device=dev, dtype=torch.float32)
+            w = torch.tensor(α, device=dev, dtype=torch.float32).pow(k)  # (T,)
 
             particular = torch.fft.irfft(
                 torch.fft.rfft(b, n=fft_n, dim=1) * torch.fft.rfft(w, n=fft_n),
-                n=fft_n, dim=1,
-            )[:, :T]                                                           # (N, T)
+                n=fft_n,
+                dim=1,
+            )[:, :T]  # (N, T)
 
-            t_exp    = torch.arange(1, T + 1, device=dev, dtype=torch.float32)
+            t_exp = torch.arange(1, T + 1, device=dev, dtype=torch.float32)
             evidence = torch.tensor(α, device=dev).pow(t_exp) * sp + particular  # (N, T)
 
         if time_constant != 0.0:
-            t_idx        = torch.arange(1, n_timepoints, device=dev, dtype=torch.float32)
+            t_idx = torch.arange(1, n_timepoints, device=dev, dtype=torch.float32)
             decision_var = sp + (evidence - sp) * (1.0 + t_idx * dt * time_constant)
         else:
             decision_var = evidence
 
-        upper   = (decision_var >= a) & valid
-        lower   = (decision_var <= 0) & valid
+        upper = (decision_var >= a) & valid
+        lower = (decision_var <= 0) & valid
         crossed = upper | lower
 
-        rt     = torch.full((n_trials,), float("nan"), device=dev, dtype=torch.float32)
+        rt = torch.full((n_trials,), float("nan"), device=dev, dtype=torch.float32)
         choice = torch.full((n_trials,), float("nan"), device=dev, dtype=torch.float32)
 
         has_crossed = crossed.any(dim=1)
         if has_crossed.any():
-            first_idx       = crossed[has_crossed].int().argmax(dim=1)
+            first_idx = crossed[has_crossed].int().argmax(dim=1)
             rt[has_crossed] = (first_idx.float() + 1) * dt + ndt
-            choice[has_crossed] = (
-                upper[has_crossed]
-                .gather(1, first_idx.unsqueeze(1))
-                .squeeze(1)
-                .float()
-            )
+            choice[has_crossed] = upper[has_crossed].gather(1, first_idx.unsqueeze(1)).squeeze(1).float()
 
         return rt.cpu().numpy(), choice.cpu().numpy()
 
@@ -258,6 +265,7 @@ class _TorchSimulator:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 class DriftDiffusionSimulator:
     """
@@ -309,18 +317,18 @@ class DriftDiffusionSimulator:
         """
         return {
             "unit_noise": np.random.standard_normal((n_reps, n_trials, n_timepoints - 1)).astype(np.float32),
-            "unit_sv":    np.random.standard_normal((n_reps, n_trials)).astype(np.float32),
-            "unit_sz":    np.random.uniform(0.0, 1.0, (n_reps, n_trials)).astype(np.float32),
+            "unit_sv": np.random.standard_normal((n_reps, n_trials)).astype(np.float32),
+            "unit_sz": np.random.uniform(0.0, 1.0, (n_reps, n_trials)).astype(np.float32),
         }
 
     def simulate_trials(
-        self, stimulus: np.ndarray | torch.Tensor, params: dict,
+        self,
+        stimulus: np.ndarray | torch.Tensor,
+        params: dict,
         unit_noise: np.ndarray | None = None,
         unit_sv: np.ndarray | None = None,
         unit_sz: np.ndarray | None = None,
     ) -> pd.DataFrame:
-        rt, choice = self._backend.simulate_trials(
-            stimulus, params, unit_noise=unit_noise, unit_sv=unit_sv, unit_sz=unit_sz
-        )
+        rt, choice = self._backend.simulate_trials(stimulus, params, unit_noise=unit_noise, unit_sv=unit_sv, unit_sz=unit_sz)
 
         return pd.DataFrame({"signed_coherence": stimulus[:, 0], "rt": rt, "choice": choice})

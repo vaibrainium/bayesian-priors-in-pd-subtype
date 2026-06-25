@@ -74,8 +74,7 @@ def main():
 
     selection = select_best_n_states(payload["group_pooled_cv"], payload["data"], rule=config.selection_rule, tol=config.selection_tol)
     print(f"saved: {out_path}")
-    print(f"1-SEM reference best_k = {selection['best']} (peak {selection['best_unconstrained']}); "
-          f"bits/trial = {[round(b, 4) for b in selection['mean_bits']]}")
+    print(f"1-SEM reference best_k = {selection['best']} (peak {selection['best_unconstrained']}); bits/trial = {[round(b, 4) for b in selection['mean_bits']]}")
     print("Final K should be chosen from the triangulation figure in notebook 6.00.")
 
 

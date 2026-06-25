@@ -35,6 +35,7 @@ from src.shared_glm_hmm.grouping import get_pooled_session_ids
 
 # Reuse the loader (with --color-coding remap) from the single-process driver.
 import importlib.util as _ilu
+
 _spec = _ilu.spec_from_file_location("_fit_shared_basis", Path(__file__).with_name("fit_shared_basis.py"))
 _fsb = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_fsb)

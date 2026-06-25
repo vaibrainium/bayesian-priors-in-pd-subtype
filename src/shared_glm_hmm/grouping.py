@@ -31,10 +31,6 @@ def session_metadata(metadata: pd.DataFrame) -> pd.DataFrame:
     cols = ["session_id", "subject_id", "is_pd", "trem_vs_brady_type", "treatment"]
     md = metadata[cols].dropna(subset=["session_id"]).drop_duplicates("session_id").copy()
 
-    md["subtype"] = md.apply(
-        lambda r: "HC" if r["is_pd"] == 0 else r["trem_vs_brady_type"], axis=1
-    )
-    md["medication"] = (
-        md["treatment"].astype("string").str.lower().fillna("none")
-    )
+    md["subtype"] = md.apply(lambda r: "HC" if r["is_pd"] == 0 else r["trem_vs_brady_type"], axis=1)
+    md["medication"] = md["treatment"].astype("string").str.lower().fillna("none")
     return md[["session_id", "subject_id", "is_pd", "subtype", "medication"]].reset_index(drop=True)
