@@ -114,3 +114,10 @@ MDS_UPDRS:
 #PIGD
 # the mean PIGD score (MDS-UPDRS 2.12–2.13, and 3.10–3.12) - https://www.nature.com/articles/s41531-021-00192-9#Sec9
 # PIGD score was defined as sum of an individual’s baseline falling, walking, freezing, gait and postural stability scores (3.11 and 3.12)
+
+
+GLM_HMM:
+  final_model: "XY__tgt"
+
+DDM_MODELING:
+  final_model: "leak-1_tc-1"
