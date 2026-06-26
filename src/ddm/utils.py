@@ -16,17 +16,26 @@ def _code_compat(*args):
     `linetable` + `exceptiontable`, shifting all subsequent arguments.
     """
     if sys.version_info >= (3, 11) and len(args) == 16:
-        (argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize, flags,
-         codestring, constants, names, varnames, filename, name,
-         firstlineno, lnotab, freevars, cellvars) = args
+        (argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names, varnames, filename, name, firstlineno, lnotab, freevars, cellvars) = args
         return types.CodeType(
-            argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize, flags,
-            codestring, constants, names, varnames, filename, name,
-            name,         # qualname — not stored in 3.10, fall back to name
+            argcount,
+            posonlyargcount,
+            kwonlyargcount,
+            nlocals,
+            stacksize,
+            flags,
+            codestring,
+            constants,
+            names,
+            varnames,
+            filename,
+            name,
+            name,  # qualname — not stored in 3.10, fall back to name
             firstlineno,
-            lnotab,       # linetable — lnotab is close enough for loading purposes
-            b"",          # exceptiontable — not present in 3.10
-            freevars, cellvars,
+            lnotab,  # linetable — lnotab is close enough for loading purposes
+            b"",  # exceptiontable — not present in 3.10
+            freevars,
+            cellvars,
         )
     return types.CodeType(*args)
 

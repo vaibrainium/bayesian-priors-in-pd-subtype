@@ -13,7 +13,6 @@ masked by the pipeline); only override the fields you are changing, everything e
 falls back to the GlmHmmConfig defaults.
 """
 
-
 from .config import GlmHmmConfig
 
 CONFIGS: dict[str, GlmHmmConfig] = {
