@@ -1,9 +1,41 @@
 import io
 import pickle
+import sys
+import types
 
+import cloudpickle.cloudpickle as _cp
 import numpy as np
 import pandas as pd
 import torch
+
+
+def _code_compat(*args):
+    """Reconstruct a code object pickled on Python 3.10 under Python 3.11+.
+
+    Python 3.11 added `qualname` at position 12 and replaced `lnotab` with
+    `linetable` + `exceptiontable`, shifting all subsequent arguments.
+    """
+    if sys.version_info >= (3, 11) and len(args) == 16:
+        (argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize, flags,
+         codestring, constants, names, varnames, filename, name,
+         firstlineno, lnotab, freevars, cellvars) = args
+        return types.CodeType(
+            argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize, flags,
+            codestring, constants, names, varnames, filename, name,
+            name,         # qualname — not stored in 3.10, fall back to name
+            firstlineno,
+            lnotab,       # linetable — lnotab is close enough for loading purposes
+            b"",          # exceptiontable — not present in 3.10
+            freevars, cellvars,
+        )
+    return types.CodeType(*args)
+
+
+def _builtin_type_compat(name):
+    """Wrap cloudpickle's _builtin_type to redirect CodeType to _code_compat."""
+    if name == "CodeType":
+        return _code_compat
+    return _cp._builtin_type(name)
 
 
 def prepare_data(
@@ -63,11 +95,13 @@ def get_job(grid: list[dict], job_id: int) -> dict:
 
 
 class CPUUnpickler(pickle.Unpickler):
-    """Remaps any CUDA storage to CPU when loading on a CPU-only machine."""
+    """Loads pkl files saved on Python 3.10 under Python 3.11+, on CPU."""
 
     def find_class(self, module, name):
         if module == "torch.storage" and name == "_load_from_bytes":
             return lambda b: torch.load(io.BytesIO(b), map_location="cpu")
+        if module == "cloudpickle.cloudpickle" and name == "_builtin_type":
+            return _builtin_type_compat
         return super().find_class(module, name)
 
 
