@@ -49,3 +49,19 @@ randomly exchanging each patient's OFF and ON labels, it rejected at a nominal 5
 approximately 52% of cases, and its posterior standard deviations were roughly three times narrower
 than those obtained by Hamiltonian Monte Carlo on the same data. All reported trial-level estimates
 therefore come from the sampled posterior.
+
+
+## Sensitivity check
+
+As a robustness check, the model was refit with each subject excluded in turn. In tremor-dominant
+patients the colour x medication interaction retained the same sign in
+11 of 11 refits,
+with posterior means ranging from +0.41 to
++0.70 log-odds (full-data estimate +0.53) and posterior
+probability of a positive effect ranging from 0.93 to
+1.00. The 95% credible interval excluded zero in
+2 of 11 refits. The direction of the
+effect is therefore stable across subject exclusions, while its magnitude remains imprecisely
+estimated at this sample size. In bradykinesia-dominant patients the interaction remained centred
+near zero in all 10 refits (posterior means -0.11 to
++0.19).
