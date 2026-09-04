@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Value Gating in Parkinsonian Perception</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{color-scheme:light dark}
+  html,body{margin:0}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<style>
+:root{
+  --ground:#F6F5F9; --panel:#FFFFFF; --panel-2:#EFEDF4;
+  --ink:#17141F; --ink-2:#3D384C; --muted:#6D6879; --hair:#DBD7E4;
+  --khaki:#8F8244; --khaki-soft:#EDE8D4;
+  --purple:#6A5AA6; --purple-soft:#E6E1F2;
+  --ok:#2F6F62; --ok-soft:#DCEAE6;
+  --no:#A85A42; --no-soft:#F4E2DC;
+  --warn:#8A6A2F; --warn-soft:#F1E7D2;
+  --shadow:0 1px 2px rgba(23,20,31,.05),0 8px 24px -12px rgba(23,20,31,.15);
+  --measure:68ch;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#14121B; --panel:#1D1A26; --panel-2:#252131;
+    --ink:#EDEBF2; --ink-2:#C6C1D4; --muted:#948FA3; --hair:#332E42;
+    --khaki:#C9BA76; --khaki-soft:#37321F;
+    --purple:#A99AE0; --purple-soft:#2A2440;
+    --ok:#6FBFA9; --ok-soft:#1B2F2A;
+    --no:#DE9077; --no-soft:#33201A;
+    --warn:#D2AC63; --warn-soft:#2E2617;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#14121B; --panel:#1D1A26; --panel-2:#252131;
+  --ink:#EDEBF2; --ink-2:#C6C1D4; --muted:#948FA3; --hair:#332E42;
+  --khaki:#C9BA76; --khaki-soft:#37321F;
+  --purple:#A99AE0; --purple-soft:#2A2440;
+  --ok:#6FBFA9; --ok-soft:#1B2F2A;
+  --no:#DE9077; --no-soft:#33201A;
+  --warn:#D2AC63; --warn-soft:#2E2617;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  font-size:16px; line-height:1.62; margin:0;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px 96px}
+.col{max-width:var(--measure)}
+p{margin:0 0 1.05em}
+a{color:var(--purple);text-underline-offset:2px}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--purple);outline-offset:3px;border-radius:3px}
+strong{font-weight:600;color:var(--ink)}
+em{font-style:italic}
+
+/* ---------- masthead ---------- */
+.mast{padding:56px 0 28px;border-bottom:1px solid var(--hair)}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin:0 0 18px;
+}
+h1{
+  font-family:Newsreader,Georgia,serif; font-weight:500; font-size:clamp(38px,5.4vw,60px);
+  line-height:1.06; letter-spacing:-.015em; margin:0 0 18px; text-wrap:balance; max-width:16ch;
+}
+.dek{font-size:19px;line-height:1.55;color:var(--ink-2);max-width:60ch;margin:0 0 28px}
+.dek b{color:var(--ink);font-weight:600}
+.meta{
+  display:flex;flex-wrap:wrap;gap:10px 30px;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);
+}
+.meta span b{color:var(--ink-2);font-weight:500}
+
+/* ---------- verdict ---------- */
+.verdict{
+  margin:34px 0 8px;padding:26px 28px;border-radius:3px;
+  background:var(--panel);border:1px solid var(--hair);border-left:3px solid var(--khaki);
+  box-shadow:var(--shadow);
+}
+.verdict h2{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--khaki);margin:0 0 14px;font-weight:600;
+}
+.verdict p{max-width:66ch}
+.verdict p:last-child{margin-bottom:0}
+
+/* ---------- sections ---------- */
+section{padding-top:56px}
+.shead{display:flex;align-items:baseline;gap:14px;margin-bottom:8px;border-top:1px solid var(--hair);padding-top:22px}
+.snum{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);font-weight:500;flex:none;padding-top:6px}
+h2.st{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:30px;line-height:1.18;letter-spacing:-.01em;margin:0;text-wrap:balance}
+h3{font-family:"IBM Plex Sans",sans-serif;font-weight:600;font-size:15.5px;letter-spacing:.005em;margin:32px 0 10px;color:var(--ink)}
+h4{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px}
+.lede{font-size:17.5px;color:var(--ink-2);max-width:62ch;margin-bottom:1.3em}
+
+/* ---------- hypothesis ledger ---------- */
+.ledger{display:flex;flex-direction:column;gap:0;margin:26px 0 8px;border-top:1px solid var(--hair)}
+.hyp{
+  display:grid;grid-template-columns:104px 1fr;gap:0 22px;
+  padding:20px 0;border-bottom:1px solid var(--hair);align-items:start;
+}
+.stamp{
+  font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  font-weight:600;padding:5px 0;text-align:center;border-radius:2px;white-space:nowrap;
+}
+.stamp.ok{background:var(--ok-soft);color:var(--ok)}
+.stamp.no{background:var(--no-soft);color:var(--no)}
+.stamp.warn{background:var(--warn-soft);color:var(--warn)}
+.hyp-body h3{margin:0 0 6px;font-size:15.5px}
+.hyp-body p{margin:0 0 .6em;color:var(--ink-2);font-size:15px;max-width:62ch}
+.hyp-body p:last-child{margin-bottom:0}
+.stat{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink);background:var(--panel-2);padding:1px 5px;border-radius:2px;white-space:nowrap}
+
+/* ---------- figure ---------- */
+figure{margin:34px 0;padding:24px 24px 18px;background:var(--panel);border:1px solid var(--hair);border-radius:3px;box-shadow:var(--shadow)}
+figcaption{font-size:13.5px;color:var(--muted);line-height:1.55;margin-top:16px;max-width:74ch}
+figcaption b{color:var(--ink-2);font-weight:600}
+.chartgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:6px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted)}
+.legend i{display:inline-block;width:16px;height:2px;vertical-align:middle;margin-right:7px}
+
+/* ---------- tables ---------- */
+.tblwrap{overflow-x:auto;margin:22px 0;border:1px solid var(--hair);border-radius:3px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
+th,td{text-align:left;padding:10px 16px;border-bottom:1px solid var(--hair)}
+th{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;background:var(--panel-2);white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.key{font-weight:500}
+.up{color:var(--ok);font-weight:600}
+.down{color:var(--no);font-weight:600}
+.flat{color:var(--muted)}
+
+/* ---------- model box ---------- */
+.model{
+  margin:26px 0;padding:24px 26px;background:var(--panel-2);border:1px solid var(--hair);border-radius:3px;
+}
+.eq{
+  font-family:"IBM Plex Mono",monospace;font-size:14px;line-height:2.05;
+  color:var(--ink);overflow-x:auto;padding:4px 0;
+}
+.eq .c{color:var(--muted)}
+.eq .hl{color:var(--khaki);font-weight:600}
+.model dl{margin:18px 0 0;display:grid;grid-template-columns:auto 1fr;gap:7px 18px;font-size:14px}
+.model dt{font-family:"IBM Plex Mono",monospace;color:var(--purple);font-weight:500;white-space:nowrap}
+.model dd{margin:0;color:var(--ink-2)}
+
+/* ---------- callouts ---------- */
+.note{
+  margin:24px 0;padding:18px 22px;border-radius:3px;font-size:15px;
+  background:var(--panel);border:1px solid var(--hair);border-left:3px solid var(--purple);
+}
+.note.risk{border-left-color:var(--no)}
+.note p{margin:0 0 .7em;color:var(--ink-2);max-width:64ch}
+.note p:last-child{margin-bottom:0}
+.note .lbl{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--purple);font-weight:600;display:block;margin-bottom:8px;
+}
+.note.risk .lbl{color:var(--no)}
+
+/* ---------- stop-ship band ---------- */
+.stopship{
+  margin:40px 0 0;padding:30px 32px;border-radius:3px;
+  background:var(--no-soft);border:1px solid var(--no);
+}
+.stopship .tag{
+  display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10px;
+  letter-spacing:.18em;text-transform:uppercase;font-weight:600;color:var(--panel);
+  background:var(--no);padding:4px 10px;border-radius:2px;margin-bottom:16px;
+}
+.stopship h2{
+  font-family:Newsreader,Georgia,serif;font-weight:500;font-size:27px;line-height:1.2;
+  margin:0 0 12px;color:var(--ink);text-wrap:balance;
+}
+.stopship p{color:var(--ink-2);max-width:64ch}
+.stopship h3{margin:26px 0 8px}
+.stopship .tblwrap{background:var(--panel);border-color:var(--no)}
+.stopship .stat{background:var(--panel)}
+
+/* ---------- ranked list ---------- */
+.ranked{list-style:none;padding:0;margin:24px 0;counter-reset:r}
+.ranked>li{
+  counter-increment:r;position:relative;padding:18px 0 18px 46px;border-bottom:1px solid var(--hair);
+}
+.ranked>li:first-child{border-top:1px solid var(--hair)}
+.ranked>li::before{
+  content:counter(r);position:absolute;left:0;top:19px;
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);font-weight:500;
+}
+.ranked h3{margin:0 0 5px}
+.ranked p{margin:0;font-size:14.5px;color:var(--ink-2);max-width:62ch}
+
+/* ---------- refs ---------- */
+.refs{list-style:none;padding:0;margin:22px 0 0;font-size:14px}
+.refs li{padding:9px 0 9px 34px;position:relative;border-bottom:1px solid var(--hair);color:var(--ink-2);line-height:1.5}
+.refs li::before{
+  content:attr(data-n);position:absolute;left:0;top:9px;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);
+}
+.refs b{color:var(--ink);font-weight:600}
+
+ul.plain{padding-left:20px;margin:0 0 1.1em}
+ul.plain li{margin-bottom:.5em;color:var(--ink-2);max-width:63ch}
+
+.foot{margin-top:64px;padding-top:22px;border-top:1px solid var(--hair);font-size:13px;color:var(--muted);max-width:66ch}
+.foot code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--panel-2);padding:1px 5px;border-radius:2px}
+
+@media (max-width:640px){
+  .hyp{grid-template-columns:1fr;gap:12px}
+  .stamp{justify-self:start;padding:5px 12px}
+  .wrap{padding:0 18px 64px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">Follow-on paper scoping · Glass-pattern PD dataset</p>
+  <h1>Value Gating in Parkinsonian Perception</h1>
+  <p class="dek">A reinforcement-learning account in which dopamine does not gate the <b>acquisition</b> of a reward-predictive prior, but the <b>gain</b> with which that prior is injected into sensory evidence accumulation — with the probes that support it, the ones that killed the obvious alternatives, and an honest read on what it is worth.</p>
+  <div class="meta">
+    <span><b>Date</b> 4 September 2026</span>
+    <span><b>Sample</b> 41 PD (OFF+ON) · 18 HC · 63,097 trials</span>
+    <span><b>Probes</b> scripts/rl_paper_probes.py</span>
+    <span><b>Status</b> Scoping — two stop-ship items open</span>
+  </div>
+</header>
+
+<div class="verdict">
+  <h2>Bottom line</h2>
+  <p>There is a real reinforcement-learning paper here, and it is a good one. It is <strong>not, as behaviour alone, a Nature Neuroscience paper</strong> — and I would rather say that now than build the framing around a target it cannot reach. The idea below is strong enough for <em>Current Biology</em>, <em>eLife</em>, <em>Brain</em>, or <em>Nature Communications</em> on the data you already have. Section 8 sets out the three specific additions that would move it into Nature Neuroscience territory; two of them are within reach of your lab.</p>
+  <p>The idea itself has survived a real attempt to kill it. I tested four candidate RL mechanisms against the trial data, then all four runner-up ideas. Seven of the eight failed — including the two most obvious ones, which is useful, because those are exactly what a reviewer will propose. The one that survived unifies every result already in your manuscript under a single parameter, and it explains a published contradiction in your own lab's prior work.</p>
+  <p><strong>Is the project worth continuing? Yes — with a more modest subtype claim and two fixes first.</strong> The dataset is expensive, rare and hard to scoop, and the trial-level effect has now survived leave-one-subject-out, reversal controls, medication-order controls and four subtyping schemes. But the headline framing is the most fragile version of what the data support: see the stop-ship section immediately below. The two things worth doing are fixing the classification bug and merging the 19 patients' missing demographics; the latter is the only action that repairs both the power problem and the subtyping instability at once.</p>
+</div>
+
+<div class="stopship">
+  <span class="tag">Stop-ship · blocks the current manuscript, not just this follow-on</span>
+  <h2>The subtype split does not currently hold up</h2>
+  <p>Found while assessing whether the project is worth continuing. Both items below need resolving before the <em>existing</em> paper is submitted, independently of anything in this report.</p>
+
+  <h3>1. Three patients violate the config's own subtyping rule</h3>
+  <p><span class="stat">TREM_VS_BRADY</span> = bradykinetic [0, 0.8) / intermediate [0.8, 1.0) / tremor [1.0, 10].</p>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Subject</th><th>Tremor score</th><th>Ratio</th><th>Labelled</th><th>Rule says</th></tr></thead>
+      <tbody>
+        <tr><td class="key">P11</td><td class="num down">0.000</td><td class="num">0.000</td><td class="num">tremor</td><td class="num">bradykinetic</td></tr>
+        <tr><td class="key">P18</td><td class="num">0.100</td><td class="num">0.160</td><td class="num">tremor</td><td class="num">bradykinetic</td></tr>
+        <tr><td class="key">P4</td><td class="num">0.400</td><td class="num">0.800</td><td class="num">bradykinetic</td><td class="num flat">intermediate (boundary, defensible)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>P11 has <strong>zero tremor</strong> and sits in the tremor-dominant group. The <span class="stat">trem_by_brady</span> column is internally consistent with tremor_score / bradykinesia_score, so the bug is in the labelling step downstream, not the ratio. Both mislabelled patients happen to have near-zero medication effects (−0.025, −0.012), so correcting them slightly <em>strengthens</em> the dissociation (tremor n = 9, mean Δ +0.112 → +0.141) — but the pipeline error has to be found and every subtype figure refit.</p>
+
+  <h3>2. The dissociation is not robust to how you subtype</h3>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Scheme</th><th>Tremor side</th><th>Non-tremor side</th></tr></thead>
+      <tbody>
+        <tr><td class="key">A. Tremor vs bradykinesia <strong>(reported)</strong></td><td class="num up">+0.4706, p = 7.5 × 10⁻⁹ (n = 11)</td><td class="num flat">+0.0084, p = 0.92 (n = 10)</td></tr>
+        <tr><td class="key">B. Tremor vs PIGD</td><td class="num">+0.2216, p = 0.0037 (n = 13)</td><td class="num flat">+0.0997, p = 0.33 (n = 7)</td></tr>
+        <tr><td class="key">C. Tremor vs non-tremor</td><td class="num">+0.2444, p = 0.0003 (n = 16)</td><td class="num flat">+0.0763, p = 0.14 (n = 25)</td></tr>
+        <tr><td class="key">D. PIGD vs non-PIGD</td><td class="num flat">—</td><td class="num">non-PIGD +0.1505, p = 0.0008 (n = 34)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The <strong>direction replicates in every scheme</strong>, which is genuinely reassuring. The magnitude does not — the reported scheme gives roughly double every alternative — and the clean "bradykinesia = exactly zero" is specific to scheme A.</p>
+  <p><strong>There is no continuous correlate.</strong> Subject-level Spearman between the tremor/bradykinesia ratio and the medication effect is <span class="stat">ρ = +0.189, p = 0.399</span> (n = 22); Pearson is <span class="stat">−0.118</span>. The relationship is non-monotonic: the two most tremor-dominant patients (ratios 3.73 and 5.82) show no effect and a reversal (−0.330) respectively, while the effect is carried by patients clustered near ratio 1.0–1.9.</p>
+
+  <h3>What to claim instead</h3>
+  <p>Not "dopaminergic medication restores prior use in tremor-dominant PD." What survives is that <strong>the medication effect is heterogeneous across patients, and tremor-predominance is one marker of who responds</strong> — which is still what resolves the 2018 null, since an unsubtyped cohort averages responders and non-responders to nothing. Report all four subtyping schemes rather than the one with the largest effect. A reviewer will run scheme B.</p>
+</div>
+
+<!-- ============================================================ -->
+<section id="afford">
+  <div class="shead"><span class="snum">01</span><h2 class="st">What this task affords that a standard PD reinforcement-learning study does not</h2></div>
+  <div class="col">
+    <p class="lede">The single most important fact about this dataset is one the current manuscript never states: the prior is never instructed. It can only be learned from reward.</p>
+    <p>Participants are told nothing about the colour contingency. The only channel by which the 75/25 base rate can enter behaviour is trial-by-trial auditory feedback. And on 0%-coherence trials — 15,548 of them, a mean of 155 per session — there is no sensory information whatsoever, so <em>reward is the only signal in the trial</em>.</p>
+    <p>I verified the reward structure directly from the trial table. On 0%-coherence trials in the Positive-Prior colour, choosing the favoured orientation is reinforced on 73.9% of trials and the alternative on 24.1%; in the Equal-Prior colour both are reinforced at ~50%. Formally:</p>
+    <div class="note">
+      <span class="lbl">The substrate</span>
+      <p>The 0%-coherence trials constitute a <strong>colour-cued two-armed bandit with 75/25 and 50/50 reward probabilities, interleaved trial-by-trial inside a perceptual decision task</strong>, in patients tested ON and OFF dopaminergic medication.</p>
+      <p>That object — a contextual bandit embedded in psychophysics, with a within-subject dopamine manipulation in humans — is, as far as the literature I could survey goes, unique. It is the reason an RL model is not an ornament on this dataset but the correct instrument for it.</p>
+    </div>
+    <p>Three further design properties matter, and all three are currently unused:</p>
+    <ul class="plain">
+      <li><strong>Every session is a fresh learning episode.</strong> All 41 patients faced a different colour→orientation mapping in session two; the informative colour flipped for 33 of 41 and the favoured direction for 19 of 41. Session two is a contextual reversal, not a repetition.</li>
+      <li><strong>Negative feedback is omission, not error.</strong> Your Figure 1 legend is explicit that only correct responses produce a tone. Positive and negative outcomes are therefore physically asymmetric, which is precisely the regime in which asymmetric-learning-rate accounts make their sharpest predictions — see §3, where that account fails anyway.</li>
+      <li><strong>There are two learning channels.</strong> The base rate can be acquired from reward (the only channel at 0% coherence) or from the perceived stimulus statistics (available at 13/35/100%). No published analysis separates them, and they make different predictions.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="idea">
+  <div class="shead"><span class="snum">02</span><h2 class="st">The idea</h2></div>
+  <div class="col">
+    <p class="lede">Dopamine is not required to learn the statistical structure of the environment. It is required to convert what has been learned into a bias on perceptual evidence.</p>
+    <p>The claim decomposes into three parts, each independently testable:</p>
+    <p><strong>(i) Acquisition is intact.</strong> PD patients OFF medication learn the reward-predictive structure at a normal rate. Their trial-by-trial reward-history weights are undiminished, their fitted learning rates are indistinguishable from controls' and unmoved by medication, and a substantial minority can state the contingency out loud when debriefed.</p>
+    <p><strong>(ii) Expression is gated.</strong> What fails OFF medication is the read-out: the gain coupling accumulated value onto the drift rate of the decision process. Levodopa restores that gain without touching the learning rate. This is why the effect appears in your DDM as a <em>drift-rate offset</em> and not a starting-point shift — a starting-point shift would be a response bias, whereas a drift offset is a bias injected into the evidence stream itself, which is exactly what a value-to-evidence gain term produces.</p>
+    <p><strong>(iii) The gate is dopamine-responsive in some patients and not others, and motor phenotype indexes which.</strong> Tremor-dominant patients are prior-blind OFF medication and overshoot controls ON. Bradykinesia-dominant patients carry a modest prior in both states and do not respond to dopamine at all. See the per-cell breakdown in §3 — this is a dissociation in <em>responsiveness</em>, not in direction, and it is weaker evidence for a strict inverted-U than I first read it as.</p>
+    <div class="note">
+      <span class="lbl">Why this needs a reinforcement-learning model specifically</span>
+      <p>Psychometric bias, the GLMM, the DDM and the GLM-HMM all measure the <em>product</em> of what was learned and how strongly it is expressed. None of them can separate the two, because none of them carries a trial-by-trial value estimate. An RL model is the only instrument that factors the observed bias into a learning term and a read-out term — which is precisely the distinction the whole claim rests on.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="evidence">
+  <div class="shead"><span class="snum">03</span><h2 class="st">What I tested, and what the data actually said</h2></div>
+  <div class="col">
+    <p class="lede">Four candidate mechanisms, run against all 63,097 trials. Three are dead. Reporting them matters more than reporting the survivor, because they are the alternatives a reviewer will raise.</p>
+  </div>
+
+  <div class="ledger">
+
+    <div class="hyp">
+      <span class="stamp no">Refuted</span>
+      <div class="hyp-body">
+        <h3>Dopamine re-routes credit from the action to the context</h3>
+        <p>The elegant version of the idea: PD OFF credits reward to the last action, medication lets it be credited to the latent colour state. I split the 1-back reward-history regressor by whether the previous trial shared the current colour, in a trial-level Bayesian mixed GLM with maximal random effects.</p>
+        <p>Context-specific credit assignment is real and present in <em>every</em> group — controls <span class="stat">0.347</span> same-context vs <span class="stat">0.206</span> different-context — but medication does not selectively modulate it. In tremor-dominant patients both shrink by roughly the same amount on medication (<span class="stat">rc_same×med = −0.124</span>, <span class="stat">rc_diff×med = −0.084</span>). The difference-of-differences is ~0.04, indistinguishable from zero. <strong>Dopamine is not changing where credit goes.</strong></p>
+      </div>
+    </div>
+
+    <div class="hyp">
+      <span class="stamp no">Refuted</span>
+      <div class="hyp-body">
+        <h3>Dopamine shifts the positive/negative learning-rate asymmetry</h3>
+        <p>The canonical Frank/Cools account, and the first thing any reviewer of a PD reinforcement-learning paper will ask for — made more pointed here because negative feedback is literal omission. I fit a dual-learning-rate model (α<sup>+</sup>, α<sup>−</sup>) per session against a single-rate model.</p>
+        <p>The dual-rate model wins on BIC in only <span class="stat">11 of 100</span> sessions, and the asymmetry shows no medication effect in either subtype (tremor <span class="stat">p = 0.90</span>, bradykinesia <span class="stat">p = 0.32</span>). <strong>Do not build this paper on α<sup>+</sup>/α<sup>−</sup>.</strong> The honest, and publishable, statement is that the canonical asymmetry account does not transfer from abstract value learning to perceptual priors.</p>
+      </div>
+    </div>
+
+    <div class="hyp">
+      <span class="stamp no">Refuted</span>
+      <div class="hyp-body">
+        <h3>Medication restores the prior by making it explicit</h3>
+        <p>Your metadata contains an <span class="stat">explicitness</span> field, apparently never analysed: a post-session awareness code with verbatim reports preserved in <span class="stat">notes</span>, available for 19 patients in both sessions. The coding is <strong>0 = fully implicit, 1 = knows the overall direction of the prior but not which colour, 2 = knows the colour-specific prior</strong>. All of it self-learned — subjects were told nothing about the prior beforehand.</p>
+        <p>Medication does not change awareness (paired Wilcoxon <span class="stat">p = 0.76</span>; 0.68 OFF → 0.74 ON). And the levels are not a single ordered scale: level 1 is a <em>different kind</em> of knowledge, not less of it. Because the manuscript's outcome measure is <span class="stat">positive_bias − equal_bias</span>, a level-1 subject applying a general bias equally to both colours contributes exactly zero to it by construction.</p>
+        <p>Scored correctly, the colour-specific effect runs <em>backwards</em> to awareness:</p>
+        <ul class="plain">
+          <li><strong>Level 0 (implicit): +0.094, p = 0.021</strong> — the only group with a significant colour-specific prior effect.</li>
+          <li>Level 2 (knows the colour rule): <strong>+0.037, p = 0.37</strong> — not significant, and smaller.</li>
+          <li>Level 1: n = 5 and <em>entirely OFF-medication</em> — fully confounded, uninterpretable.</li>
+        </ul>
+        <p>The level 0 vs level 2 comparison is <em>not</em> confounded: they are balanced across medication (10/12 vs 4/7) and subtype (12/9 vs 6/5), and the direction holds within each medication state separately (OFF 0.068 vs 0.006; ON 0.115 vs 0.054).</p>
+        <p><strong>The mechanism differs too, and this is the sharper finding.</strong> Implicit patients express the prior through a <em>drift-rate offset</em> (+0.397, <span class="stat">p = 0.003</span>) with no starting-point shift. Colour-aware patients show the opposite: a significant <em>starting-point</em> shift (+0.038, <span class="stat">p = 0.042</span>) and no drift offset — and the starting-point difference between the two groups is itself significant (<span class="stat">p = 0.028</span>).</p>
+        <p>That inverts Thakur et al. (2021), where healthy explicit learners showed <em>larger</em> drift offsets. In these patients, explicit knowledge appears to route the prior into a response bias rather than an evidence bias — the less effective channel — which is why knowing the rule buys them nothing.</p>
+        <div class="note risk" style="margin-top:14px">
+          <span class="lbl">How firm is this</span>
+          <p><strong>Exploratory.</strong> The behavioural level 0 vs level 2 contrast is <em>not</em> significant (p = 0.53 pooled; 0.64 OFF, 0.54 ON) — "significant in one group, not the other" is a difference in significance, not a significant difference, and that is the same error flagged in the order-effects analysis. Only the starting-point contrast (p = 0.028) is a genuine between-group difference, and roughly 24 tests were run here, so it would not survive correction.</p>
+          <p>Treat this as the most promising hypothesis in the dataset rather than a result. The cheapest way to test it properly: code the <strong>12 further verbatim debriefing reports</strong> sitting unused in <span class="stat">raw/session_metadata_ucla.csv</span>, which would raise awareness coverage from 38 sessions towards 50.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="hyp">
+      <span class="stamp ok">Survives</span>
+      <div class="hyp-body">
+        <h3>Dopamine sets the gain coupling learned value to sensory evidence</h3>
+        <p>I fit a context-conditioned delta-rule model, Q(colour, action), with a logistic read-out combining signed coherence and the learned value difference. Because Q-updates use <em>observed</em> choices and outcomes, the value trajectory is exogenous given the learning rate — so the learning rate can be gridded and the read-out solved exactly, which makes the fit fast and free of local minima.</p>
+        <p>The learning rate α is flat everywhere: tremor <span class="stat">0.316 → 0.232</span> (<span class="stat">p = 0.47</span>), bradykinesia <span class="stat">0.203 → 0.251</span> (<span class="stat">p = 0.76</span>), all PD <span class="stat">p = 0.87</span>, and controls do not differ from PD OFF (<span class="stat">p = 0.19</span>). The value→choice gain β<sub>v</sub> moves, and moves only in tremor-dominant patients: <span class="stat">0.484 → 2.495</span>, a fivefold increase (<span class="stat">p = 0.083</span>, n = 11), from well below the control value of 1.299 to well above it.</p>
+        <p>The gain moves; the learning rate does not. That is the whole claim, and it is visible in the same session-level fits.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <figure>
+    <div class="chartgrid" id="charts"></div>
+    <div class="legend">
+      <span><i style="background:var(--khaki)"></i>Tremor-dominant (n=11)</span>
+      <span><i style="background:var(--purple)"></i>Bradykinesia-dominant (n=10)</span>
+      <span><i style="background:var(--muted);height:0;border-top:2px dashed var(--muted)"></i>Healthy controls (n=18)</span>
+    </div>
+    <figcaption><b>The dissociation.</b> OFF→ON change in four parameters, by motor subtype, with the healthy-control level as a dashed reference. The colour-prior weight and the value→choice gain move sharply — and only in tremor-dominant patients. The reinforcement-learning rate does not move in either subtype, and neither does the trial-by-trial reward-history weight in the direction the prior weight moves. Prior and reward-history weights are fixed effects from the trial-level Bayesian mixed GLM; α and β<sub>v</sub> are means of per-session RL fits. Panels use independent y-scales; all values are reproduced by <code>scripts/rl_paper_probes.py</code>.</figcaption>
+  </figure>
+
+  <div class="col">
+    <h3>The fully-crossed breakdown, and what it costs</h3>
+    <p>Fitting every subtype × medication cell <em>separately</em>, rather than reading them off interaction terms, changes two things I had wrong — and both corrections matter.</p>
+  </div>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Cell</th><th>n</th><th>Trials</th><th>Colour-prior weight [95% CI]</th><th>Reward hist. (same ctx)</th></tr></thead>
+      <tbody>
+        <tr><td class="key">Healthy controls</td><td class="num">18</td><td class="num">11,249</td><td class="num up">+0.421 [+0.33, +0.51]</td><td class="num">+0.365</td></tr>
+        <tr><td class="key">Tremor OFF</td><td class="num">11</td><td class="num">6,706</td><td class="num flat">+0.072 [−0.04, +0.19]</td><td class="num">+0.295</td></tr>
+        <tr><td class="key">Tremor ON</td><td class="num">11</td><td class="num">6,812</td><td class="num up">+0.560 [+0.45, +0.67]</td><td class="num">+0.161</td></tr>
+        <tr><td class="key">Bradykinesia OFF</td><td class="num">10</td><td class="num">6,393</td><td class="num up">+0.160 [+0.04, +0.28]</td><td class="num">+0.228</td></tr>
+        <tr><td class="key">Bradykinesia ON</td><td class="num">10</td><td class="num">6,136</td><td class="num up">+0.189 [+0.07, +0.31]</td><td class="num">+0.281</td></tr>
+        <tr><td class="key">Unclassified OFF</td><td class="num">19</td><td class="num">12,289</td><td class="num flat">−0.061 [−0.14, +0.02]</td><td class="num">+0.400</td></tr>
+        <tr><td class="key">Unclassified ON</td><td class="num">19</td><td class="num">12,149</td><td class="num up">+0.100 [+0.02, +0.18]</td><td class="num">+0.424</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <div class="note risk">
+      <span class="lbl">Two corrections</span>
+      <p><strong>Bradykinesia-dominant patients are not prior-blind OFF medication.</strong> Their prior weight is <span class="stat">+0.160</span>, CI excluding zero. The subject-level test called this null (<span class="stat">p = 0.232</span>) only because it lacks the power to see it.</p>
+      <p><strong>They do not lose the prior ON medication either</strong> — it is flat (<span class="stat">+0.160 → +0.189</span>). The "overdose" reading in §5 came from the GLM-HMM occupancy collapsing to zero, which the manuscript itself flags as mechanically degenerate. The trial-level data do not support it.</p>
+      <p>What survives is cleaner than what it replaces: <strong>tremor-dominant patients are prior-blind OFF and overshoot controls ON (0.560 vs 0.421); bradykinesia-dominant patients carry a modest prior throughout and are simply unresponsive to dopamine.</strong> A dissociation in responsiveness, not in direction. The overshoot independently corroborates the gain account — β<sub>v</sub> overshoots too, 2.495 against a control value of 1.299.</p>
+    </div>
+
+    <h3>Every subject-level contrast in this dataset is underpowered</h3>
+    <p>This is the real cost of subdividing, and it applies to the published headline as much as to anything new here.</p>
+  </div>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Group</th><th>n</th><th>dz needed (80% power)</th><th>dz observed</th><th></th></tr></thead>
+      <tbody>
+        <tr><td class="key">Tremor-dominant</td><td class="num">11</td><td class="num">0.98</td><td class="num">+0.56</td><td class="num down">Underpowered</td></tr>
+        <tr><td class="key">Bradykinesia-dominant</td><td class="num">10</td><td class="num">1.05</td><td class="num">−0.10</td><td class="num down">Underpowered</td></tr>
+        <tr><td class="key">Unclassified</td><td class="num">19</td><td class="num">0.71</td><td class="num">+0.25</td><td class="num down">Underpowered</td></tr>
+        <tr><td class="key">All PD</td><td class="num">41</td><td class="num">0.47</td><td class="num">+0.16</td><td class="num down">Underpowered</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>No within-subject OFF→ON contrast in this dataset can reliably detect the effect it is being asked to detect. That is why the manuscript must lean on the trial-level GLMM, and it is precisely where a reviewer will push: the trial-level effective n is trials, not subjects. Detecting the tremor effect at subject level needs <strong>n ≈ 30 tremor-dominant patients</strong>; you have 11. Subtyping the 19 unclassified patients would reach roughly 20 tremor and 19 bradykinesia — still short, but it would nearly halve the confidence intervals and is the cheapest improvement available anywhere in this project.</p>
+    <p><strong>Practical consequence for the write-up:</strong> report the per-cell table with confidence intervals rather than interaction terms alone. It is both more honest and stronger — "bradykinesia OFF > 0" and "tremor ON > controls" are informative results that an interaction-only presentation conceals.</p>
+
+    <h3>Convergent evidence already in the manuscript</h3>
+    <p>The gain account is not carried by β<sub>v</sub> alone. Read this way, four results you already have stop being four findings and become one:</p>
+  </div>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Existing result</th><th>Under a "gain on value read-out" account</th><th>Fit</th></tr></thead>
+      <tbody>
+        <tr><td class="key">Prior enters via drift-rate offset, not starting point (Fig. 3g,h)</td><td>A value-to-evidence gain biases accumulation, not the baseline. A starting-point shift would falsify it.</td><td class="num up">Predicted</td></tr>
+        <tr><td class="key">Colour × medication interaction, tremor only (Fig. 2e,f)</td><td>The gain term itself, measured at trial level. <span class="stat">z = 5.78, p = 7.5 × 10⁻⁹</span></td><td class="num up">Predicted</td></tr>
+        <tr><td class="key">Reward-history weight falls ON medication (tremor <span class="stat">+0.458 → +0.096</span>)</td><td>Fast reward trace and slow context-bound value compete for the same read-out.</td><td class="num up">Predicted</td></tr>
+        <tr><td class="key">Δprior weight anti-correlates with Δreward-history weight (<span class="stat">ρ = −0.305</span>)</td><td>Direct signature of that competition, across all 41 patients.</td><td class="num up">Predicted</td></tr>
+        <tr><td class="key">Learning rate α unchanged by medication</td><td>Required: acquisition must be intact for the claim to hold.</td><td class="num up">Confirmed</td></tr>
+        <tr><td class="key">Awareness unchanged, uncorrelated with expression</td><td>Required: knowledge must be dissociable from deployment.</td><td class="num up">Confirmed</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <div class="note risk">
+      <span class="lbl">Where this is currently weak</span>
+      <p>Beyond the power ceiling above, the plain context-conditioned RL model beats a stimulus-only model on BIC in only <strong>50 of 100 sessions</strong>. A per-session three-parameter maximum-likelihood fit on ~630 trials is noisy, and the model as specified lumps the colour prior together with the fast reward trace into one β<sub>v</sub>. Before any of this goes in a paper the model needs a proper specification — separate slow and fast value terms — and hierarchical Bayesian fitting across sessions rather than independent per-session point estimates. I expect that to sharpen β<sub>v</sub> considerably, but I have not shown it, and the headline <span class="stat">p = 0.083</span> is not yet significance.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="model">
+  <div class="shead"><span class="snum">04</span><h2 class="st">Model specification</h2></div>
+  <div class="col">
+    <p class="lede">The minimal model that instantiates the claim, and the two comparisons that make it falsifiable.</p>
+    <p>Value is learned per colour context by a delta rule; the learned value difference then enters the evidence accumulation as a drift offset scaled by a gain that is free to differ between medication states. The perceptual and value pathways stay separable throughout.</p>
+  </div>
+
+  <div class="model">
+    <div class="eq">
+<span class="c">// value acquisition — per colour context c, chosen action a</span><br>
+Q<sub>t+1</sub>(c,a) = Q<sub>t</sub>(c,a) + α · [ r<sub>t</sub> − Q<sub>t</sub>(c,a) ]<br><br>
+<span class="c">// evidence accumulation — the value term enters the drift</span><br>
+dx = [ k·C<sub>t</sub> + <span class="hl">β<sub>v</sub><sup>(med)</sup></span>·ΔQ<sub>t</sub>(c) + o ]·dt + η(t) − ℓ·(x − z·a<sub>bound</sub>)·dt<br><br>
+<span class="c">// fast trace competes for the same read-out</span><br>
+ΔQ<sub>t</sub>(c) = Q<sub>t</sub>(c,1) − Q<sub>t</sub>(c,0) &nbsp;&nbsp; h<sub>t</sub> = Σ<sub>k</sub> w<sub>k</sub>·r<sub>t−k</sub>·ch<sub>t−k</sub>
+    </div>
+    <dl>
+      <dt>α</dt><dd>learning rate — <em>acquisition</em>. Predicted invariant to medication.</dd>
+      <dt>β<sub>v</sub><sup>(med)</sup></dt><dd>value→evidence gain — <em>expression</em>. The parameter carrying the entire claim.</dd>
+      <dt>k, o, ℓ, z, a<sub>bound</sub></dt><dd>drift gain, drift offset, leak, start point, boundary — as in your existing leaky DDM with urgency, so the fits stay commensurable with Figure 3.</dd>
+      <dt>w<sub>k</sub></dt><dd>reward-history kernel over 5–10 lags, split into reward-signed and choice-only components.</dd>
+    </dl>
+  </div>
+
+  <div class="col">
+    <h4>The three model comparisons that decide it</h4>
+    <ul class="plain">
+      <li><strong>α-free vs α-fixed across medication.</strong> The claim predicts no cost to fixing α across a patient's two sessions. If fixing α hurts fit, acquisition is not intact and the framing is wrong.</li>
+      <li><strong>β<sub>v</sub>-free vs β<sub>v</sub>-fixed across medication.</strong> The mirror test. The claim predicts a large fit cost to fixing β<sub>v</sub>, in tremor-dominant patients specifically.</li>
+      <li><strong>Value on drift vs value on starting point.</strong> Fit both. The claim, and your Figure 3, predict drift wins. This is the comparison that separates a genuine evidence-level bias from a response bias, and it is the one a sceptical reviewer will most want to see.</li>
+    </ul>
+    <p>Fit hierarchically (Stan or HDDM/PyMC), with subtype and medication as group-level predictors on β<sub>v</sub>, and validate by posterior predictive simulation of the psychometric and chronometric functions — not by parameter recovery alone.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="novelty">
+  <div class="shead"><span class="snum">05</span><h2 class="st">Where this sits in the literature</h2></div>
+  <div class="col">
+    <p class="lede">The claim is genuinely unoccupied, but it sits between two large literatures that have each half-answered it, and it collides with a published null from your own group.</p>
+
+    <h3>What is already known, and what is not</h3>
+    <p>The PD reinforcement-learning literature is dense and almost entirely built on <em>abstract</em> value learning — probabilistic selection, reversal, gambling tasks. Its central results are Frank's positive/negative learning asymmetry under levodopa and Cools' dopamine-overdose account of dorsal-versus-ventral striatal dosing. Neither has been asked whether dopamine governs the transfer of learned value into <em>perception</em>.</p>
+    <p>The perceptual-priors literature runs in parallel and rarely touches dopamine at all. Your own 2021 paper (Thakur, Basso, Ditterich &amp; Knowlton) established in healthy subjects that feature-specific priors are implemented through the drift-rate offset — and fit no RL models. The 2024 <em>Nature Communications</em> work on distinct basal-ganglia contributions to implicit versus explicit value signals in perceptual decisions is the nearest neighbour, and it is not a dopamine-manipulation study in patients.</p>
+    <p>The gap is specific: <strong>no study has used a within-subject dopamine manipulation to dissociate the acquisition of a reward-predictive perceptual prior from its expression.</strong> This dataset can, because it contains a contextual bandit and a psychophysical task in the same trials.</p>
+
+    <h3 style="color:var(--no)">The collision you must address first</h3>
+    <p>A 2018 <em>Journal of Neurophysiology</em> paper — <em>Perceptual decisions based on previously learned information are independent of dopaminergic tone</em> — reports that prior-based perceptual decision-making in PD remains impaired <strong>whether patients are ON or OFF medication</strong>. Given the stimulus, the framing, and the lineage running back through Perugini, Ditterich &amp; Basso (2016, <em>Current Biology</em>), this is very likely your own group. It directly contradicts your Figure 1e.</p>
+    <div class="note">
+      <span class="lbl">This is the paper's strongest asset, not its biggest threat</span>
+      <p>Your subtype dissociation <em>explains the earlier null</em>. Tremor-dominant patients gain the prior on medication; bradykinesia-dominant patients lose it. A mixed, unsubtyped cohort averages the two and finds nothing — which is exactly what the 2018 paper reported, and it is also why your own all-patients Figure 1e is only marginally significant at corrected <span class="stat">p = 0.023</span>.</p>
+      <p>Framed this way the manuscript stops being a contradiction of a published null and becomes its resolution. That is a substantially stronger paper, and it makes the subtype split load-bearing rather than exploratory. It also obliges you to reconcile the two datasets explicitly — including whether any patients appear in both.</p>
+    </div>
+    <p>A second tension is worth pre-empting: Vilares &amp; Kording (2017, <em>Nature Human Behaviour</em>) report that dopaminergic medication <em>increases</em> reliance on current sensory information — the opposite direction to your effect. The reconciliation the gain account offers is that their prior is explicitly instructed and parametrically varied, whereas yours must be learned from reward. Dopamine would then govern the expression of <em>reward-learned</em> priors specifically, leaving instructed priors alone. That is a testable claim, not a hand-wave, and the 2018 null plus Vilares together sharpen it.</p>
+
+    <h3>The neurobiological anchor for the subtype effect</h3>
+    <p>The subtype dissociation is not arbitrary. Dopaminergic denervation follows different striatal gradients across motor phenotypes: akinetic-rigid patients show the steepest loss in dorsal putamen, while tremor-dominant patients show relatively more caudate and lateral putamen involvement, with better-preserved overall dopaminergic function. The caudate is the associative striatum — the territory implicated causally in integrating uncertain visual evidence with reward context.</p>
+    <p>That would yield a principled inverted-U — levodopa dosed to dorsal (motor) depletion landing tremor-dominant patients near the associative-striatal optimum and pushing bradykinesia-dominant patients past it. <strong>The per-cell analysis in §3 does not support the second half of that story.</strong> Bradykinesia-dominant patients do not lose the prior on medication; their trial-level prior weight is flat (+0.160 → +0.189, both CIs excluding zero). The apparent loss exists only in the GLM-HMM cumulative occupancy (0.248 → 0.000), which your own manuscript flags as mechanically degenerate. Treat the inverted-U as a discussion-level interpretation, not a claim the data carry.</p>
+    <div class="note risk">
+      <span class="lbl">Do not overclaim this</span>
+      <p>The inverted-U's strongest test — that the medication effect should track baseline dopaminergic status — has already failed on the covariates available: no correlation with UPDRS improvement, tremor improvement, bradykinesia improvement, disease duration or age (all <span class="stat">|ρ| ≤ 0.29</span>, <span class="stat">p ≥ 0.22</span>, n = 22).</p>
+    <p><strong>Correction to an earlier version of this report: levodopa equivalent daily dose is not recoverable.</strong> I said extracting it was the highest-value few hours available here. It is not, because the data are not there. Parsing <span class="stat">pd_meds</span> with Tomlinson et al. (2010) conversion factors yields a computable LEDD for <strong>7 of 22 patients</strong>. The other 15 record the drug and the tablet strength — "carbidopa-levodopa (Sinemet) 25-100 mg tablet" — and no dose frequency at all, and a daily dose cannot be inferred from a tablet strength. The 7 give <span class="stat">ρ = +0.47, p = 0.28</span> against the medication effect; at n = 7 only a correlation of <span class="stat">r ≥ 0.89</span> is detectable, so this is uninterpretable either way. Testing the inverted-U properly needs roughly 30 patients with dosing data, which means going back to the prescribing records at each site.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="predictions">
+  <div class="shead"><span class="snum">06</span><h2 class="st">Predictions and how it dies</h2></div>
+  <div class="col">
+    <p class="lede">A claim worth publishing has to name the observations that would sink it. These are pre-registerable now, before the hierarchical refit.</p>
+  </div>
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Prediction</th><th>Falsified if</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="key">α invariant to medication in both subtypes</td><td>α shifts reliably with medication</td><td class="num up">Held (p ≥ 0.47)</td></tr>
+        <tr><td class="key">β<sub>v</sub> rises ON medication in tremor-dominant patients</td><td>β<sub>v</sub> flat, or rises in both subtypes</td><td class="num" style="color:var(--warn);font-weight:600">Directional (p = 0.083)</td></tr>
+        <tr><td class="key">Value enters via drift, not starting point</td><td>Starting-point model wins on held-out likelihood</td><td class="num up">Held (Fig. 3)</td></tr>
+        <tr><td class="key">Awareness dissociates from expression</td><td>Awareness predicts prior effect size</td><td class="num up">Held (ρ = −0.10)</td></tr>
+        <tr><td class="key">β<sub>v</sub> change anti-correlates with reward-history change</td><td>The two move together</td><td class="num up">Held (ρ = −0.305)</td></tr>
+        <tr><td class="key">Learning curves at 0% coherence match across medication states</td><td>OFF patients acquire more slowly</td><td class="num flat">Untested</td></tr>
+        <tr><td class="key">Effect is confined to reward-learned priors, not instructed ones</td><td>Requires a new instructed-prior condition</td><td class="num flat">Not testable here</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col">
+    <p>The most informative untested prediction is the learning-curve one, and it carries a known risk: your earlier session-thirds probe found the tremor-ON prior effect essentially flat from the first third (0.112 early, 0.119 late), meaning acquisition completes within roughly the first fifty 0%-coherence trials. A learning <em>rate</em> may therefore be poorly constrained. Fit trial-resolved weights (PsyTrack or equivalent) on the 0%-coherence subset before committing to any claim about learning dynamics — and if the curves are too fast to fit, say so and rest the paper on asymptotic gain, which is where its strength actually lies.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="verdict2">
+  <div class="shead"><span class="snum">07</span><h2 class="st">An honest read on the target journal</h2></div>
+  <div class="col">
+    <p class="lede">You asked for a Nature Neuroscience-worthy idea. The idea is good enough; the evidence base, as it stands, is not — and the gap is specific rather than vague.</p>
+    <p>Nature Neuroscience publishes human behavioural work, but essentially always with one of: a neural measurement, a causal circuit manipulation, or a computational advance general enough to change how a field models a problem. This dataset currently offers none of the three. What it offers is behaviour and modelling in 41 patients, with the load-bearing dissociation resting on subgroups of 11 and 10, and the key new parameter at <span class="stat">p = 0.083</span>. That is a strong specialist paper. Submitted to Nature Neuroscience as-is, it would be desk-rejected, and the subtype n would be the stated reason — with justification: §3 shows every subject-level contrast in the dataset is underpowered, and the tremor effect would need roughly 30 tremor-dominant patients to stand on its own without trial-level inference.</p>
+    <h3>Three additions that would change the assessment</h3>
+    <ol class="ranked">
+      <li>
+        <h3>A cross-species causal bridge</h3>
+        <p>This is the Basso lab's natural move and by far the strongest. The same Glass-pattern task exists in monkeys with superior colliculus and caudate recordings, and the 2018 paper already reports that intra-striatal D2 blockade disrupts outcome-driven choices but spares perceptual inference. That is the causal counterpart of the human dissociation — reward-trace read-out and value-to-evidence gain pulled apart pharmacologically in the same task. Human dissociation plus monkey causal manipulation in one paper is a Nature Neuroscience submission.</p>
+      </li>
+      <li>
+        <h3>A neural or physiological measure in the patients</h3>
+        <p>Nothing usable currently exists: the eye-tracking sessions are 4 healthy controls with saccadic responses and no pupillometry. Adding pupillometry to a new patient cohort would give a trial-by-trial arousal proxy and let you test whether the gain term tracks a physiological signal.</p>
+      </li>
+      <li>
+        <h3>DBS as a within-subject causal manipulation</h3>
+        <p>STN stimulation ON/OFF in the same task, in the same patients, would test whether the gate is dopaminergic or basal-ganglia-circuit-level — which is exactly the question the 2018 paper's title raises and does not settle. I found no DBS patients in this cohort, so this means new recruitment.</p>
+      </li>
+    </ol>
+    <p><strong>My recommendation:</strong> write the paper now for <em>Current Biology</em> or <em>eLife</em> — <em>Current Biology</em> being the natural home given Perugini et al. (2016) is there and this resolves it. Frame it as the acquisition/expression dissociation, lead with the awareness result, and let the subtype split carry the resolution of the earlier null. Then pursue the monkey bridge as the follow-up that goes to Nature Neuroscience. Trying to force the present dataset into that venue costs a year and probably loses both papers.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="alts">
+  <div class="shead"><span class="snum">08</span><h2 class="st">The runner-ups, probed</h2></div>
+  <div class="col">
+    <p class="lede">All four were tested. None yields a new finding. Three are well-controlled negatives and one is a robustness check that passes — which turns out to be worth more than another result.</p>
+  </div>
+
+  <div class="ledger">
+    <div class="hyp">
+      <span class="stamp no">Impossible</span>
+      <div class="hyp-body">
+        <h3>Two learning channels: reward versus observation</h3>
+        <p>I ranked this first and said I would test it next. It cannot be done in this design, and the reason is structural rather than statistical. I fit a model with value learned only from reward on 0%-coherence trials and a base rate learned only from observed targets at ≥35% coherence.</p>
+        <p>The two regressors correlate at <span class="stat">r = 0.63</span> and the fitted weights are unstable — β<sub>rew</sub> ranges from <span class="stat">−1.51</span> to <span class="stat">+2.66</span> across groups and β<sub>obs</sub> flips sign. The cause is visible in the design: <strong>the base rate is held constant across coherence levels</strong> (P(target = 1) = 0.748, 0.747, 0.746, 0.745 at 0/13/35/100%). Both channels therefore estimate the same number, and no amount of data can separate them from choices alone. <strong>Retire this idea; it needs a task where the base rate varies with coherence.</strong></p>
+      </div>
+    </div>
+
+    <div class="hyp">
+      <span class="stamp ok">Passes</span>
+      <div class="hyp-body">
+        <h3>Contextual reversal across sessions</h3>
+        <p>Not a paper, but a robustness check the manuscript needs. Controlling for both colour-flip and direction-flip at trial level, the tremor medication effect is <em>untouched</em>: <span class="stat">colour × med = +0.4699</span> against the published <span class="stat">+0.4706</span>.</p>
+        <p>The flip effects themselves are not interpretable at these cell sizes — only 1 of 11 tremor patients kept the same colour and only 2 of 11 kept the same direction, so the apparently strong <span class="stat">colour × dir-flip</span> term (z = 3.42) rests on two subjects and is pseudo-replication. Report the control, not the effect. A marginal whole-sample hint that direction reversal blunts the medication effect (<span class="stat">p = 0.073</span>) is worth a supplementary line and nothing more.</p>
+      </div>
+    </div>
+
+    <div class="hyp">
+      <span class="stamp no">Refuted</span>
+      <div class="hyp-body">
+        <h3>Value gain as the GLM-HMM's state-defining variable</h3>
+        <p>The appealing version of stitching: show the discrete "prior-sensitive state" and the continuous value gain are one mechanism. The raw correlation across 285 state × session fits looks spectacular — <span class="stat">ρ = +0.84, p = 4 × 10⁻⁷⁷</span>, replicating in every group.</p>
+        <p>It is an artefact. ΔQ converges toward the base rate, so it largely <em>is</em> a colour regressor (<span class="stat">|r| = 0.83</span> median; only 32% of its variance is within-colour). Partialling colour out, the residual value signal carries <strong>no</strong> state information: <span class="stat">ρ = +0.05, p = 0.39</span> overall, and no group reaches significance. The positive control works — the same per-state fits recover the HMM's own colour weights at <span class="stat">ρ = +0.90</span> — so this is a real null, not a broken analysis. <strong>The GLM-HMM states are organised by colour sensitivity, not by value read-out gain.</strong> Present Figure 4 as description, not mechanism.</p>
+      </div>
+    </div>
+
+    <div class="hyp">
+      <span class="stamp warn">Marginal</span>
+      <div class="hyp-body">
+        <h3>Strategy instability as a dopamine-depletion signature</h3>
+        <p>Unchanged from the earlier scoping round and not re-run: occupancy entropy 0.447 in controls vs 0.681 in PD OFF (<span class="stat">p = 0.053</span>), lapse-state occupancy <span class="stat">p = 0.057</span>, no medication effect on either, dwell times degenerate without regularisation. A supplementary figure at best.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="stitch">
+  <div class="shead"><span class="snum">09</span><h2 class="st">The paper these probes actually support</h2></div>
+  <div class="col">
+    <p class="lede">The probes do not stitch together by addition — there is one finding here, not six. They stitch by elimination, and that is a stronger paper than a list of effects.</p>
+    <p>Across every probe, exactly one parameter moves with medication and everything on the learning side stays put. That pattern is the paper: <strong>a systematic exclusion of every acquisition-side explanation, leaving the read-out gain as the only surviving account.</strong></p>
+
+    <h3>Why the nulls are usable</h3>
+    <p>An elimination argument fails if its nulls are merely underpowered. At <em>trial</em> level they are not. Taking a region of practical equivalence of ±0.238 — half the size of the colour × medication effect that does move — every history-side null in tremor-dominant patients is evidence <em>of absence</em>:</p>
+  </div>
+
+  <div class="tblwrap">
+    <table>
+      <thead><tr><th>Effect (tremor-dominant, trial level)</th><th>Estimate</th><th>95% CI</th><th>P(|effect| &lt; ROPE)</th><th></th></tr></thead>
+      <tbody>
+        <tr><td class="key">Colour × medication — the effect that moves</td><td class="num">+0.476</td><td class="num">[+0.314, +0.637]</td><td class="num">0.002</td><td class="num up">Moves</td></tr>
+        <tr><td class="key">Reward history (same context) × medication</td><td class="num">−0.124</td><td class="num">[−0.240, −0.007]</td><td class="num">0.973</td><td class="num flat">Null supported</td></tr>
+        <tr><td class="key">Reward history (diff. context) × medication</td><td class="num">−0.084</td><td class="num">[−0.196, +0.027]</td><td class="num">0.996</td><td class="num flat">Null supported</td></tr>
+        <tr><td class="key">Context-specificity of credit × medication</td><td class="num">−0.039</td><td class="num">[−0.201, +0.122]</td><td class="num">0.992</td><td class="num flat">Null supported</td></tr>
+        <tr><td class="key">Choice history (same context) × medication</td><td class="num">−0.010</td><td class="num">[−0.126, +0.107]</td><td class="num">1.000</td><td class="num flat">Null supported</td></tr>
+        <tr><td class="key">Choice history (diff. context) × medication</td><td class="num">−0.058</td><td class="num">[−0.170, +0.054]</td><td class="num">0.999</td><td class="num flat">Null supported</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <div class="note risk">
+      <span class="lbl">The limit of this move</span>
+      <p>Equivalence testing rescues the <em>trial-level</em> nulls only. The learning-rate invariance, the α<sup>+</sup>/α<sup>−</sup> null and the awareness dissociation are subject-level, n = 11, and remain underpowered — they cannot be converted this way. Fitting the RL model hierarchically, so α and β<sub>v</sub> carry trial-level posteriors rather than per-session point estimates, is what would bring them into the same regime. That single methodological change is the difference between "we did not detect a learning effect" and "there is no learning effect", and the whole argument rests on it.</p>
+    </div>
+
+    <h3>Proposed figure sequence</h3>
+    <ol class="ranked">
+      <li>
+        <h3>The effect, and who shows it</h3>
+        <p>Task, psychometric functions, and the per-cell breakdown with confidence intervals rather than interaction terms alone — including the two facts the interaction hides: bradykinesia-dominant patients carry a prior OFF medication (+0.160, CI excludes zero), and tremor-dominant patients ON medication overshoot controls (0.560 vs 0.421).</p>
+      </li>
+      <li>
+        <h3>It is not a learning deficit</h3>
+        <p>The elimination panel, and the core of the paper. Reward-history weights intact with equivalence tests; credit-assignment locus unchanged; learning rate invariant; no valence asymmetry; awareness intact and dissociated from expression. Five independent ways of failing to be a learning deficit.</p>
+      </li>
+      <li>
+        <h3>It is a read-out deficit</h3>
+        <p>Drift-rate offset rather than starting point (existing Fig. 3), and the value→evidence gain β<sub>v</sub> from the hierarchical RL-DDM. The model comparisons in §4 belong here.</p>
+      </li>
+      <li>
+        <h3>Discrete states as description</h3>
+        <p>The GLM-HMM, presented as a state-level complement — explicitly <em>not</em> as independent mechanistic confirmation, given both the degeneracy the manuscript already flags and the residual-value null above.</p>
+      </li>
+      <li>
+        <h3>Reconciliation</h3>
+        <p>Why the 2018 null found nothing: subtypes with opposite dopamine responsiveness average to zero in an unsubtyped cohort. Supplement carries the reversal controls, order effects and leave-one-subject-out.</p>
+      </li>
+    </ol>
+    <p>Everything above is supported by analyses that exist today, except the hierarchical refit. That refit is the critical path — not more probes.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="blockers">
+  <div class="shead"><span class="snum">10</span><h2 class="st">Blockers and data hygiene</h2></div>
+  <div class="col">
+    <ul class="plain">
+      <li><strong>Trial order — resolved.</strong> No trial-index column exists, so every history and RL analysis assumes row order within <span class="stat">session_filename</span> is trial order. Confirmed by the author on 4 September 2026: trials are stored in order within session. This was load-bearing for all of it and is now closed.</li>
+      <li><strong>Demographics are capped at n = 22.</strong> Demographic and item-level MDS-UPDRS fields are present only for the Stanford and Harvard patients; 15 UCLA and 4 Case Western patients and all 18 controls are blank. Every clinical-correlation analysis is limited until the per-site enrolment records are merged.</li>
+      <li><strong>LEDD is blocked at source, not merely unextracted.</strong> Computable for 7 of 22 patients; the rest have no dose frequency recorded. See §5. The inverted-U cannot be tested without returning to per-site prescribing records — treat it as a discussion point until then.</li>
+      <li><strong>Awareness ratings cover 38 of 100 sessions and no controls</strong> — but more exist. The awareness dissociation is the most striking result in this report and rests on the thinnest data in it. An unnamed trailing column in <span class="stat">raw/session_metadata_ucla.csv</span> holds <strong>12 further verbatim debriefing reports</strong> on colour strategy and perceived direction, currently unused. Coding those would be the cheapest available strengthening of the report's best result.</li>
+      <li><strong>Literature coverage is web-search only.</strong> The PubMed and bioRxiv connectors were unauthorised in this session, so no structured database queries were run. Everything in §5 should be re-checked in PubMed and Google Scholar before an introduction is written — particularly for 2026 work, and particularly the 2018 <em>J Neurophysiol</em> paper, whose full text I could not retrieve.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="refs">
+  <div class="shead"><span class="snum">11</span><h2 class="st">Key references</h2></div>
+  <ol class="refs">
+    <li data-n="1"><b>Thakur, Basso, Ditterich &amp; Knowlton (2021).</b> Implicit and explicit learning of Bayesian priors differently impacts bias during perceptual decision-making. <em>Scientific Reports</em> 11, 16932. — Your task; establishes drift-offset implementation of feature-specific priors in healthy subjects; no RL models.</li>
+    <li data-n="2"><b>Perugini, Ditterich &amp; Basso (2016).</b> Patients with Parkinson's disease show impaired use of priors in conditions of sensory uncertainty. <em>Current Biology</em> 26, 1902–1910. — The direct precursor; the PD prior-use deficit is already published.</li>
+    <li data-n="3"><b>Perugini et al. (2018).</b> Perceptual decisions based on previously learned information are independent of dopaminergic tone. <em>J Neurophysiol</em> 119, 849–861. — The published null your Figure 1e contradicts, and which the subtype split resolves. Also reports that intrastriatal D2 blockade disrupts outcome-driven but not inference-driven choice.</li>
+    <li data-n="4"><b>Vilares &amp; Kording (2017).</b> Dopaminergic medication increases reliance on current information in Parkinson's disease. <em>Nature Human Behaviour</em> 1, 0129. — Opposite-direction effect with instructed priors; the contrast sharpens the reward-learned-prior claim.</li>
+    <li data-n="5"><b>Frank et al. (2004, 2007).</b> Go/NoGo learning asymmetry under levodopa in PD. — The canonical account this dataset does <em>not</em> support; must be addressed explicitly.</li>
+    <li data-n="6"><b>Cools et al.</b> Dopamine overdose hypothesis: evidence and clinical implications. — The inverted-U framework for the subtype dissociation.</li>
+    <li data-n="7"><b>Ashwood et al. (2022).</b> Mice alternate between discrete strategies during perceptual decision-making. <em>Nature Neuroscience</em> 25, 201–212. — The GLM-HMM framework your Figure 4 follows.</li>
+    <li data-n="8"><b>Starkweather, Babayan, Uchida &amp; Gershman (2017).</b> Dopamine reward prediction errors reflect hidden-state inference across time. <em>Nature Neuroscience</em> 20, 581–589. — Dopamine and latent-state inference; the framing literature for context-conditioned value.</li>
+    <li data-n="9"><b>Distinct basal ganglia contributions to learning from implicit and explicit value signals in perceptual decision-making (2024).</b> <em>Nature Communications</em> 15. — Nearest neighbour to the present claim; not a patient dopamine manipulation.</li>
+    <li data-n="10"><b>Talluri et al. (2025).</b> Catecholamines reduce choice history biases in perceptual decision making. <em>PLoS Biology</em>. — States the dopamine-specific limitation this dataset can answer.</li>
+    <li data-n="11"><b>Eggers et al. (2011); Moccia et al. (2014).</b> Akinetic-rigid vs tremor-dominant FP-CIT SPECT patterns. — The denervation-gradient basis for the subtype claim.</li>
+    <li data-n="12"><b>Pedersen, Frank &amp; Biele (2017).</b> The drift diffusion model as the choice rule in reinforcement learning. <em>Psychon Bull Rev</em> 24, 1234–1251. — The RLDDM formalism to build on.</li>
+  </ol>
+</section>
+
+<p class="foot">Numbers in §§1, 3 and 5 were computed for this report from <code>processed_all_data_accu_60_filtered.csv</code> and <code>processed_metadata_all_data_accu_60.csv</code>, and are reproduced by <code>scripts/rl_paper_probes.py</code>. Statistics carried over from the manuscript and the earlier scoping round are attributed as such. Where a result is underpowered or rests on a small cell, that is stated at the point of use rather than in a footnote.</p>
+
+</div>
+
+<script>
+const PANELS = [
+  { title:"Colour-prior weight", sub:"GLMM fixed effect (log-odds)", min:0, max:0.6, hc:0.406,
+    tremor:[0.079,0.555], brady:[0.179,0.184] },
+  { title:"Reward-history weight", sub:"same-context, 1-back", min:0, max:0.40, hc:0.347,
+    tremor:[0.280,0.157], brady:[0.212,0.285] },
+  { title:"Learning rate α", sub:"per-session RL fit", min:0, max:0.50, hc:0.428,
+    tremor:[0.316,0.232], brady:[0.203,0.251] },
+  { title:"Value→choice gain βᵥ", sub:"per-session RL fit", min:0, max:2.7, hc:1.299,
+    tremor:[0.484,2.495], brady:[1.059,1.640] }
+];
+
+const NS = "http://www.w3.org/2000/svg";
+function el(n, attrs, txt){
+  const e = document.createElementNS(NS, n);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (txt !== undefined) e.textContent = txt;
+  return e;
+}
+
+function panel(p){
+  const W = 230, H = 210, L = 44, R = 20, T = 34, B = 40;
+  const xOff = L + 26, xOn = W - R - 26;
+  const y = v => T + (H - T - B) * (1 - (v - p.min) / (p.max - p.min));
+
+  const svg = el("svg", {viewBox:`0 0 ${W} ${H}`, width:"100%", role:"img",
+                         "aria-label":`${p.title}: OFF to ON change`});
+
+  svg.appendChild(el("text", {x:L-30, y:14, fill:"var(--ink)", "font-size":"11.5",
+    "font-family":"IBM Plex Sans, sans-serif", "font-weight":"600"}, p.title));
+  svg.appendChild(el("text", {x:L-30, y:26, fill:"var(--muted)", "font-size":"9.5",
+    "font-family":"IBM Plex Mono, monospace"}, p.sub));
+
+  // axis
+  svg.appendChild(el("line", {x1:L, y1:T, x2:L, y2:H-B, stroke:"var(--hair)", "stroke-width":"1"}));
+  [p.min, p.max].forEach(v => {
+    svg.appendChild(el("text", {x:L-6, y:y(v)+3.5, fill:"var(--muted)", "font-size":"9.5",
+      "text-anchor":"end", "font-family":"IBM Plex Mono, monospace"}, v.toFixed(v>=1?1:2)));
+    svg.appendChild(el("line", {x1:L-3, y1:y(v), x2:L, y2:y(v), stroke:"var(--hair)"}));
+  });
+
+  // HC reference
+  svg.appendChild(el("line", {x1:L, y1:y(p.hc), x2:W-R+4, y2:y(p.hc),
+    stroke:"var(--muted)", "stroke-width":"1.5", "stroke-dasharray":"4 3", opacity:"0.75"}));
+  svg.appendChild(el("text", {x:W-R+4, y:y(p.hc)-5, fill:"var(--muted)", "font-size":"9",
+    "text-anchor":"end", "font-family":"IBM Plex Mono, monospace"}, "HC"));
+
+  // x labels
+  ["OFF","ON"].forEach((lab,i) => {
+    svg.appendChild(el("text", {x:i?xOn:xOff, y:H-B+17, fill:"var(--muted)", "font-size":"10",
+      "text-anchor":"middle", "font-family":"IBM Plex Mono, monospace", "letter-spacing":"0.08em"}, lab));
+  });
+
+  // series
+  [["tremor","var(--khaki)"], ["brady","var(--purple)"]].forEach(([k,col]) => {
+    const [a,b] = p[k];
+    svg.appendChild(el("line", {x1:xOff, y1:y(a), x2:xOn, y2:y(b),
+      stroke:col, "stroke-width":"2", "stroke-linecap":"round"}));
+    [[xOff,a],[xOn,b]].forEach(([cx,v]) => {
+      svg.appendChild(el("circle", {cx, cy:y(v), r:"4", fill:col, stroke:"var(--panel)", "stroke-width":"1.5"}));
+    });
+    const rise = y(b) < y(a);
+    svg.appendChild(el("text", {x:xOn+9, y:y(b)+ (rise?-6:12), fill:col, "font-size":"10",
+      "text-anchor":"end", "font-family":"IBM Plex Mono, monospace", "font-weight":"600"},
+      b.toFixed(b>=1?2:3)));
+  });
+
+  return svg;
+}
+
+const host = document.getElementById("charts");
+PANELS.forEach(p => {
+  const d = document.createElement("div");
+  d.appendChild(panel(p));
+  host.appendChild(d);
+});
+</script>
+
+</body>
+</html>
