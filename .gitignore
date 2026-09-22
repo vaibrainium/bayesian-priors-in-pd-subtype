@@ -92,3 +92,6 @@ target/
 
 # claude
 .claude/
+
+# Local analysis outputs (the data directory is read-only)
+outputs/
