@@ -25,7 +25,8 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
-    "./notebooks/imports.py"
+    "./notebooks/imports.py",
+    "./notebooks_2/imports.py"
 ]
 
 line-length = 250
