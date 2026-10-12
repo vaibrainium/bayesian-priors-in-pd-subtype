@@ -37,7 +37,7 @@ from pathlib import Path
 
 import numpy as np
 
-from config import dir_config
+from src.data_io.paths import PROCESSED, writable
 from src.glm_hmm.cv_utils import bernoulli_null_loglik, pooled_bits_per_trial
 from src.glm_hmm.fitting_utils import group_wise_fit, session_wise_fit
 
@@ -239,7 +239,7 @@ def run_unit(model_dir: Path, group_pkl: Path, n_iters: int, force: bool) -> Non
         "data": bundle["data"],
         "config": bundle["config"],
     }
-    with open(out_path, "wb") as f:
+    with open(writable(out_path), "wb") as f:
         pickle.dump(payload, f)
 
     extra = " + pooled" if "pooled" in finetuned else ""
@@ -282,7 +282,7 @@ def main():
     )
     args = parser.parse_args()
 
-    glm_hmm_dir = Path(dir_config.data.processed) / "glm_hmm"
+    glm_hmm_dir = PROCESSED / "glm_hmm"
     cv_mode_filter = set(args.cv_mode) if args.cv_mode else None
     jobs = enumerate_jobs(glm_hmm_dir, cv_mode_filter)
 

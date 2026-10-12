@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root for `c
 
 import numpy as np
 
-from config import dir_config
+from src.data_io.paths import PROCESSED, writable
 from src.shared_glm_hmm.experiments import CONFIGS
 from src.shared_glm_hmm.selection import bootstrap_state_stability, icl_bic
 
@@ -39,7 +39,7 @@ def main():
     args = parser.parse_args()
 
     run_name = run_name_for(args.config, args.color_coding)
-    rdir = Path(dir_config.data.processed) / "shared_glm_hmm" / run_name
+    rdir = PROCESSED / "shared_glm_hmm" / run_name
     cv_path = rdir / "all_subjects.pkl"
     if not cv_path.exists() or cv_path.stat().st_size == 0:
         parser.error(f"missing {cv_path}; run the fit + merge first.")
@@ -53,7 +53,7 @@ def main():
         print(f"skip ICL/BIC: {icl_csv.name} already on disk (use --force)")
     else:
         ib = icl_bic(bundle)
-        ib.to_csv(icl_csv)
+        ib.to_csv(writable(icl_csv))
         print(f"wrote {icl_csv.name}  (BIC-min K={int(ib['bic'].idxmin())}, ICL-min K={int(ib['icl'].idxmin())})")
 
     stab_csv = rdir / "selection_stability.csv"
@@ -63,7 +63,7 @@ def main():
         stab_states = [int(k) for k in states if int(k) >= args.min_state]
         print(f"bootstrap stability: B={args.B}  n_iters={args.n_iters}  states={stab_states}")
         stab = bootstrap_state_stability(bundle, state_range=stab_states, B=args.B, n_iters=args.n_iters)
-        stab.to_csv(stab_csv)
+        stab.to_csv(writable(stab_csv))
         print(f"wrote {stab_csv.name}")
         print(stab.round(3).to_string())
 

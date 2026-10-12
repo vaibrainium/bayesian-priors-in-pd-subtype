@@ -25,7 +25,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from config import dir_config
+from src.data_io import catalog
+from src.data_io.paths import PROCESSED, writable, writable_dir
 from src.glm_hmm.config import GlmHmmConfig
 from src.glm_hmm.cv_utils import group_wise_fit_cv, select_best_n_states, session_wise_fit_cv
 from src.glm_hmm.data_preparation import get_group_session_ids, process_sessions
@@ -59,7 +60,7 @@ def build_session_data(session_ids: list, inputs: list, unnorm_inputs: list, cho
 
 def save_models(output_dir: Path, subject_group: str, payload: dict):
     """Pickle the assembled models-and-data payload for one group."""
-    with open(output_dir / f"{subject_group}.pkl", "wb") as f:
+    with open(writable(output_dir / f"{subject_group}.pkl"), "wb") as f:
         pickle.dump(payload, f)
 
 
@@ -175,13 +176,13 @@ def run_cv_for_group(prep: dict, config: GlmHmmConfig, name: str, cv_mode: str, 
 # --------------------------------------------------------------------------- #
 # Data loading
 # --------------------------------------------------------------------------- #
-def load_data(processed_dir: Path):
+def load_data():
     """Load the trial-level data and metadata, coercing missing labels to -1."""
-    data = pd.read_csv(processed_dir / "processed_all_data_accu_60_all.csv")
+    data = catalog.load_trials("all")
     for col in ("choice", "target", "outcome"):
         data[col] = data[col].fillna(-1).astype(int)
 
-    metadata = pd.read_csv(processed_dir / "processed_metadata_all_data_accu_60.csv")
+    metadata = catalog.load_metadata()
     return data, metadata
 
 
@@ -205,8 +206,8 @@ def main():
 
     config_names = list(args.config or CONFIGS)
 
-    processed_dir = Path(dir_config.data.processed)
-    data, metadata = load_data(processed_dir)
+    processed_dir = PROCESSED
+    data, metadata = load_data()
     subject_groups = get_group_session_ids(metadata)
 
     for name in config_names:
@@ -217,7 +218,7 @@ def main():
         for cv_mode in args.cv_mode:
             dir_suffix = "__global_pooled_cv" if cv_mode == "pooled" else "__session_pooled_cv"
             output_dir = processed_dir / "glm_hmm" / f"{name}{dir_suffix}"
-            output_dir.mkdir(parents=True, exist_ok=True)
+            writable_dir(output_dir)
             output_dirs[cv_mode] = output_dir
 
         best_states = {}  # per-group chosen state count, pooled mode only

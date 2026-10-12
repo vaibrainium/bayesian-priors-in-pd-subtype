@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root for `config` / `src`
 
-from config import dir_config
+from src.data_io.paths import PROCESSED, writable
 from src.shared_glm_hmm.experiments import CONFIGS
 from src.shared_glm_hmm.fitting import finetune_pooled
 
@@ -32,7 +32,7 @@ def main():
     args = parser.parse_args()
 
     run_name = args.config + ("__colorpm1" if args.color_coding == "pm1" else "")
-    model_dir = Path(dir_config.data.processed) / "shared_glm_hmm" / run_name
+    model_dir = PROCESSED / "shared_glm_hmm" / run_name
     cv_path = model_dir / "all_subjects.pkl"
     out_path = model_dir / "all_subjects_final.pkl"
 
@@ -59,7 +59,7 @@ def main():
         "data": bundle["data"],
         "config": bundle["config"],
     }
-    with open(out_path, "wb") as f:
+    with open(writable(out_path), "wb") as f:
         pickle.dump(payload, f)
     print(f"saved: {out_path}  ({len(finetuned['models'])} session models + pooled)")
 

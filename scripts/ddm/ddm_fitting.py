@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 import torch
 
-from config import dir_config
+from src.data_io import catalog
+from src.data_io.paths import writable, writable_dir
 from src.ddm.ddm import DecisionModel, FixedParam, FreeParam
 from src.ddm.utils import build_grid, build_stimulus, get_job, prepare_data
 
@@ -121,19 +122,14 @@ def get_output_dir(
         model_name = f"leak-{int(enable_leak)}_tc-{int(enable_time_constant)}"
 
     output_dir = ddm_dir / model_name
-    output_dir.mkdir(parents=True, exist_ok=True)
+    writable_dir(output_dir)
 
     return output_dir
 
 
-def load_behavior_data(ddm_dir: Path) -> pd.DataFrame:
+def load_behavior_data() -> pd.DataFrame:
 
-    behavior_path = ddm_dir / "behavior_data.csv"
-
-    if not behavior_path.exists():
-        raise FileNotFoundError(f"Missing file: {behavior_path}")
-
-    return pd.read_csv(behavior_path)
+    return catalog.load("ddm_behavior")
 
 
 def data_verification(data: pd.DataFrame):
@@ -190,7 +186,7 @@ def fit_model(
 def save_results(output_dir: Path, session_id, color, model, result, job):
     out_path = output_dir / f"{session_id}_color_{color}.pkl"
 
-    with open(out_path, "wb") as f:
+    with open(writable(out_path), "wb") as f:
         cloudpickle.dump(
             {
                 "model": model,
@@ -226,7 +222,7 @@ def save_failure(output_dir, session_id, color, job, stage, error):
                 return obj.tolist()
             return super().default(obj)
 
-    with open(fail_path, "w") as f:
+    with open(writable(fail_path), "w") as f:
         json.dump(payload, f, indent=2, cls=_NumpyEncoder)
 
     logger.error(f"[FAILED] {stage} -> {fail_path}")
@@ -249,7 +245,7 @@ if __name__ == "__main__":
     # ----------------------------
     # paths
     # ----------------------------
-    ddm_dir = Path(dir_config.data.processed) / "ddm"
+    ddm_dir = catalog.path("ddm_fits")
 
     # ----------------------------
     # cuda check
@@ -260,7 +256,7 @@ if __name__ == "__main__":
     # ----------------------------
     # data + job
     # ----------------------------
-    behavior_df = load_behavior_data(ddm_dir)
+    behavior_df = load_behavior_data()
 
     grid = build_grid(behavior_df)
 

@@ -21,17 +21,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root for `config` / `src`
 
-import pandas as pd
-
-from config import dir_config
+from src.data_io import catalog
+from src.data_io.paths import PROCESSED, writable, writable_dir
 from src.glm_hmm.cv_utils import select_best_n_states
 from src.shared_glm_hmm.experiments import CONFIGS
 from src.shared_glm_hmm.fitting import prepare_group, run_pooled_cv
 from src.shared_glm_hmm.grouping import get_pooled_session_ids
 
 
-def load_data(processed_dir: Path, color_coding: str = "01"):
-    data = pd.read_csv(processed_dir / "processed_all_data_accu_60_all.csv")
+def load_data(color_coding: str = "01"):
+    data = catalog.load_trials("all")
     for col in ("choice", "target", "outcome"):
         data[col] = data[col].fillna(-1).astype(int)
     if color_coding == "pm1":
@@ -39,7 +38,7 @@ def load_data(processed_dir: Path, color_coding: str = "01"):
         # Must happen before process_sessions so the stim_x_color interaction (built inside
         # prepare_input_data) uses the chosen color coding.
         data["color"] = data["color"].map({0.0: -1.0, 1.0: 1.0})
-    metadata = pd.read_csv(processed_dir / "processed_metadata_all_data_accu_60.csv")
+    metadata = catalog.load_metadata()
     return data, metadata
 
 
@@ -52,16 +51,14 @@ def main():
 
     config = CONFIGS[args.config]
     run_name = args.config + ("__colorpm1" if args.color_coding == "pm1" else "")
-    processed_dir = Path(dir_config.data.processed)
-    out_dir = processed_dir / "shared_glm_hmm" / run_name
-    out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = writable_dir(PROCESSED / "shared_glm_hmm" / run_name)
     out_path = out_dir / "all_subjects.pkl"
 
     if out_path.exists() and out_path.stat().st_size > 0 and not args.force:
         print(f"skip: {out_path} already on disk (use --force to refit)")
         return
 
-    data, metadata = load_data(processed_dir, args.color_coding)
+    data, metadata = load_data(args.color_coding)
     groups = get_pooled_session_ids(metadata)
     session_ids = groups["all_subjects"]
     print(f"=== shared basis: run={run_name}  n_sessions={len(session_ids)}  states={list(config.state_range)} ===")
@@ -69,7 +66,7 @@ def main():
     prep = prepare_group(data, session_ids, config)
     payload = run_pooled_cv(prep, config, run_name)
 
-    with open(out_path, "wb") as f:
+    with open(writable(out_path), "wb") as f:
         pickle.dump(payload, f)
 
     selection = select_best_n_states(payload["group_pooled_cv"], payload["data"], rule=config.selection_rule, tol=config.selection_tol)

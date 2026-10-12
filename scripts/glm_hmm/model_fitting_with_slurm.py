@@ -35,6 +35,8 @@ import numpy as np
 
 import model_fitting as mf
 
+from src.data_io.paths import PROCESSED, writable_dir
+
 
 def cv_output_dir(processed_dir: Path, name: str, cv_mode: str) -> Path:
     """Output directory for one (config, cv_mode).
@@ -64,7 +66,7 @@ def run_unit(config, name: str, group_name: str, session_ids: list, data, cv_mod
     output_dirs = {}
     for cv_mode in cv_modes:
         output_dir = cv_output_dir(processed_dir, name, cv_mode)
-        output_dir.mkdir(parents=True, exist_ok=True)
+        writable_dir(output_dir)
         output_dirs[cv_mode] = output_dir
 
     pending = cv_modes if force else [m for m in cv_modes if not unit_done(output_dirs[m], group_name)]
@@ -123,8 +125,8 @@ def main():
 
     config_names = list(args.config or mf.CONFIGS)
 
-    processed_dir = Path(mf.dir_config.data.processed)
-    data, metadata = mf.load_data(processed_dir)
+    processed_dir = PROCESSED
+    data, metadata = mf.load_data()
     subject_groups = mf.get_group_session_ids(metadata)
 
     # Deterministic flat work-unit list: config order (CLI/registry) x group order

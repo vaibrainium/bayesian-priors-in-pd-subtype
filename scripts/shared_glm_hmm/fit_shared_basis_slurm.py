@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root for `c
 
 import numpy as np
 
-from config import dir_config
+from src.data_io.paths import PROCESSED, writable, writable_dir
 from src.glm_hmm.cv_utils import select_best_n_states
 from src.shared_glm_hmm.experiments import CONFIGS
 from src.shared_glm_hmm.fitting import prepare_group, run_pooled_cv
@@ -118,7 +118,7 @@ def main():
 
     config = CONFIGS[args.config]
     run_name = run_name_for(args.config, args.color_coding)
-    processed_dir = Path(dir_config.data.processed)
+    processed_dir = PROCESSED
     rdir = run_dir(processed_dir, run_name)
     shard_dir = rdir / "shards"
     states = [int(k) for k in config.state_range]
@@ -135,7 +135,7 @@ def main():
             print(f"skip merge: {out_path} already on disk (use --force)")
             return
         payload = merge_shards(shard_dir, config, run_name)
-        with open(out_path, "wb") as f:
+        with open(writable(out_path), "wb") as f:
             pickle.dump(payload, f)
         sel = select_best_n_states(payload["group_pooled_cv"], payload["data"], rule=config.selection_rule, tol=config.selection_tol)
         print(f"merged {len(payload['group_pooled_cv']['state_range'])} shards -> {out_path}")
@@ -149,17 +149,17 @@ def main():
         parser.error(f"--job_id {args.job_id} out of range [0, {len(states) - 1}]")
 
     K = states[args.job_id]
-    shard_dir.mkdir(parents=True, exist_ok=True)
+    writable_dir(shard_dir)
     shard_path = shard_dir / f"k{K}.pkl"
     if shard_path.exists() and shard_path.stat().st_size > 0 and not args.force:
         print(f"skip: shard {shard_path} already on disk (use --force)")
         return
 
-    data, metadata = load_data(processed_dir, args.color_coding)
+    data, metadata = load_data(args.color_coding)
     session_ids = get_pooled_session_ids(metadata)["all_subjects"]
     print(f"=== shard: run={run_name}  K={K}  n_sessions={len(session_ids)} ===")
     payload = fit_one_state(config, run_name, data, session_ids, K)
-    with open(shard_path, "wb") as f:
+    with open(writable(shard_path), "wb") as f:
         pickle.dump(payload, f)
     print(f"saved shard: {shard_path}")
 
