@@ -36,19 +36,20 @@ refit, an unchanged one means the stored numbers are exactly what the recorded s
 
 import contextlib
 import io
-import json
 import os
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from src.utils.mcmc_cache import TERMS, _fingerprint, build_design, ess_bulk, rhat
+from src.data_io import cache
+from src.data_io.cache import fingerprint as _fingerprint
+from src.data_io.paths import OUTPUTS
+from src.utils.mcmc_cache import TERMS, build_design, ess_bulk, rhat
 
-CACHE_DIR = Path(__file__).resolve().parents[2] / "outputs" / "robustness_cache"
+CACHE_DIR = OUTPUTS / "robustness_cache"
 
 COL_MED = TERMS.index("col:med")
 
@@ -191,9 +192,9 @@ def _sidecar(fingerprint, settings, subset, extra):
 
 def _valid_sidecar(path, fingerprint, settings, extra):
     """True when the cached entry was written from these data, settings and specification."""
-    if not path.exists():
+    stored = cache.read_sidecar(path)
+    if stored is None:
         return False
-    stored = json.loads(path.read_text())
     for key, value in {"fingerprint": fingerprint, "settings": dict(settings), **extra}.items():
         if stored.get(key) != value:
             print(f"{path.stem}: {key} changed since the cache was written, recomputing")
@@ -213,15 +214,13 @@ def spec_or_load(subtype, subset, spec_name, settings=None, refit=False):
     design, outcomes, subject_index, _ = build_design(subset)
     fingerprint = _fingerprint(design, outcomes, subject_index)
 
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     slug = spec_name.replace(" ", "_").replace("(", "").replace(")", "").replace(",", "").replace("/", "-")
     draws_path = CACHE_DIR / f"{subtype}_spec_{slug}.npz"
     meta_path = draws_path.with_suffix(".json")
 
     if not refit and draws_path.exists() and _valid_sidecar(meta_path, fingerprint, settings, {"spec": spec.as_dict()}):
-        with np.load(draws_path) as cached:
-            draws = cached["col_med"]
-            summary = json.loads(meta_path.read_text())["summary"]
+        draws = cache.load_arrays(draws_path)["col_med"]
+        summary = cache.read_sidecar(meta_path)["summary"]
         print(f"{subtype} / {spec_name}: loaded cached draws")
         return summary, draws
 
@@ -234,8 +233,8 @@ def spec_or_load(subtype, subset, spec_name, settings=None, refit=False):
         "r_hat": float(rhat(beta)),
         "ESS": float(ess_bulk(beta)),
     }
-    np.savez_compressed(draws_path, col_med=draws)
-    meta_path.write_text(json.dumps(_sidecar(fingerprint, settings, subset, {"spec": spec.as_dict(), "summary": summary}), indent=2) + "\n")
+    cache.save_arrays(draws_path, col_med=draws)
+    cache.write_sidecar(meta_path, _sidecar(fingerprint, settings, subset, {"spec": spec.as_dict(), "summary": summary}))
     print(f"{subtype} / {spec_name}: sampled and cached")
     return summary, draws
 
@@ -318,7 +317,6 @@ def permutation_or_load(subtype, subset, workers=None, refit=False, flips=None):
     flips = exact_sign_flips(len(subjects)) if flips is None else flips
     settings = {"formula": PERMUTATION_FORMULA, "relabellings": int(len(flips)), "exhaustive": len(flips) == 2 ** len(subjects)}
 
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     table_path = CACHE_DIR / f"{subtype}_signflip.csv"
     meta_path = CACHE_DIR / f"{subtype}_signflip.json"
 
@@ -338,8 +336,8 @@ def permutation_or_load(subtype, subset, workers=None, refit=False, flips=None):
             "col:med": statistics,
         }
     )
-    table.to_csv(table_path, index=False)
-    meta_path.write_text(json.dumps(_sidecar(fingerprint, settings, subset, {"failed": int(np.isnan(statistics).sum())}), indent=2) + "\n")
+    cache.save_table(table, table_path)
+    cache.write_sidecar(meta_path, _sidecar(fingerprint, settings, subset, {"failed": int(np.isnan(statistics).sum())}))
     print(f"{subtype}: cached to {table_path.relative_to(CACHE_DIR.parents[1])}")
     return table
 
@@ -377,7 +375,6 @@ def agreement_or_load(subtype, subset, relabellings, settings=None, refit=False)
     fingerprint = _fingerprint(design, outcomes, subject_index)
     sidecar_settings = {**settings, "rows": sorted(relabellings)}
 
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     table_path = CACHE_DIR / f"{subtype}_agreement.csv"
     meta_path = CACHE_DIR / f"{subtype}_agreement.json"
 
@@ -401,8 +398,8 @@ def agreement_or_load(subtype, subset, relabellings, settings=None, refit=False)
         print(f"{subtype}: relabelling {row} done ({len(rows)}/{len(relabellings)})", flush=True)
 
     table = pd.DataFrame(rows)
-    table.to_csv(table_path, index=False)
-    meta_path.write_text(json.dumps(_sidecar(fingerprint, sidecar_settings, subset, {}), indent=2) + "\n")
+    cache.save_table(table, table_path)
+    cache.write_sidecar(meta_path, _sidecar(fingerprint, sidecar_settings, subset, {}))
     print(f"{subtype}: cached to {table_path.relative_to(CACHE_DIR.parents[1])}")
     return table
 

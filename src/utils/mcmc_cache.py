@@ -23,20 +23,17 @@ numbers therefore do not move when arviz changes its API or its defaults, and lo
 needs nothing beyond numpy and scipy.
 """
 
-import hashlib
-import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from scipy import stats as sp_stats
 
-from config import dir_config
+from src.data_io import cache
+from src.data_io.paths import PROCESSED
 
-processed_dir = Path(dir_config.data.processed)
-CACHE_DIR = processed_dir / "mcmc_fits"
+CACHE_DIR = PROCESSED / "mcmc_fits"
 
 TERMS = ["intercept", "coh", "col", "med", "col:med", "prev_rc", "prev_rc:med"]
 
@@ -68,6 +65,12 @@ def prepare_trials(trial_data, subject_ids):
     df["col"] = np.where(df["color"] == 1, 0.5, -0.5)
     df["med"] = np.where(df["medication"] == "on", 0.5, -0.5)
     return df.dropna(subset=["prev_rc"]).reset_index(drop=True)
+
+
+def observed_bias(subset):
+    """Each subject's observed choice proportion at 0% coherence, per condition."""
+    zero = subset[subset["coherence"] == 0]
+    return zero.groupby(["subject_id", "med", "col"])["choice"].mean()
 
 
 def build_design(subset):
@@ -207,10 +210,7 @@ def _diagnose(beta):
 
 def _fingerprint(design, outcomes, subject_index):
     """Hash of the exact numbers handed to the sampler, so stale caches cannot go unnoticed."""
-    digest = hashlib.sha256()
-    for array in (design, outcomes, subject_index):
-        digest.update(np.ascontiguousarray(array).tobytes())
-    return digest.hexdigest()[:16]
+    return cache.fingerprint(design, outcomes, subject_index)
 
 
 def _pymc_version():
@@ -238,9 +238,9 @@ def _sidecar(fingerprint, settings, subset, extra=None):
 
 def _check_sidecar(path, fingerprint, settings):
     """Return the stored sidecar if it matches, else None with the reason printed."""
-    if not path.exists():
+    stored = cache.read_sidecar(path)
+    if stored is None:
         return None
-    stored = json.loads(path.read_text())
     if stored.get("fingerprint") != fingerprint:
         print(f"{path.stem}: trial data changed since the cache was written, refitting")
         return None
@@ -282,7 +282,6 @@ def fit_or_load(name, subset, settings=None, refit=False):
     design, outcomes, subject_index, _ = build_design(subset)
     fingerprint = _fingerprint(design, outcomes, subject_index)
 
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     draws_path = CACHE_DIR / f"{name}.npz"
     meta_path = CACHE_DIR / f"{name}.json"
 
@@ -298,15 +297,15 @@ def fit_or_load(name, subset, settings=None, refit=False):
         )
 
     if not refit and _check_sidecar(meta_path, fingerprint, settings) is not None and draws_path.exists():
-        cached = np.load(draws_path)
+        cached = cache.load_arrays(draws_path)
         beta, diverging = cached["beta"], cached["diverging"]
-        if "rhat" in cached.files:
+        if "rhat" in cached:
             term_rhat, term_ess = cached["rhat"], cached["ess_bulk"]
         else:
             # Written before diagnostics were cached. They are a deterministic function of the stored
             # draws, so fill them in and rewrite rather than discarding a good fit.
             term_rhat, term_ess = _diagnose(beta)
-            np.savez_compressed(draws_path, beta=beta, diverging=diverging, rhat=term_rhat, ess_bulk=term_ess)
+            cache.save_arrays(draws_path, beta=beta, diverging=diverging, rhat=term_rhat, ess_bulk=term_ess)
             print(f"{name}: added diagnostics to the existing cache")
         print(f"{name}: loaded cached draws (seed {settings['seed']}, fingerprint {fingerprint})")
         return as_fit(beta, diverging, term_rhat, term_ess)
@@ -315,18 +314,15 @@ def fit_or_load(name, subset, settings=None, refit=False):
     beta = idata.posterior["beta"].values
     diverging = idata.sample_stats["diverging"].values
     term_rhat, term_ess = _diagnose(beta)
-    np.savez_compressed(draws_path, beta=beta, diverging=diverging, rhat=term_rhat, ess_bulk=term_ess)
-    meta_path.write_text(
-        json.dumps(
-            _sidecar(
-                fingerprint,
-                settings,
-                subset,
-                {"max_rhat": float(term_rhat.max()), "min_ess_bulk": float(term_ess.min()), "divergences": int(diverging.sum())},
-            ),
-            indent=2,
-        )
-        + "\n"
+    cache.save_arrays(draws_path, beta=beta, diverging=diverging, rhat=term_rhat, ess_bulk=term_ess)
+    cache.write_sidecar(
+        meta_path,
+        _sidecar(
+            fingerprint,
+            settings,
+            subset,
+            {"max_rhat": float(term_rhat.max()), "min_ess_bulk": float(term_ess.min()), "divergences": int(diverging.sum())},
+        ),
     )
     print(f"{name}: sampled and cached to {draws_path.relative_to(CACHE_DIR.parents[1])}")
     return as_fit(beta, diverging, term_rhat, term_ess)
@@ -344,7 +340,6 @@ def loso_or_load(name, subset, settings=None, refit=False):
     design, outcomes, subject_index, _ = build_design(subset)
     fingerprint = _fingerprint(design, outcomes, subject_index)
 
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     table_path = CACHE_DIR / f"{name}_loso.csv"
     meta_path = CACHE_DIR / f"{name}_loso.json"
 
@@ -374,7 +369,20 @@ def loso_or_load(name, subset, settings=None, refit=False):
         )
 
     loso = pd.DataFrame(records)
-    loso.to_csv(table_path, index=False)
-    meta_path.write_text(json.dumps(_sidecar(fingerprint, settings, subset, {"refits": len(records)}), indent=2) + "\n")
+    cache.save_table(loso, table_path)
+    cache.write_sidecar(meta_path, _sidecar(fingerprint, settings, subset, {"refits": len(records)}))
     print(f"{name}: cached to {table_path.relative_to(CACHE_DIR.parents[1])}")
     return loso
+
+
+def cached_draws(name):
+    """The stored arrays of a reported fit (`beta`, `diverging`, `rhat`, `ess_bulk`), read only.
+
+    For notebooks that need the reported draws without the trial data that `fit_or_load` checks
+    them against. Raises if `fit_or_load` has not cached that subtype yet.
+    """
+    name = SUBTYPE_CACHE_NAME.get(name, name)
+    draws_path = CACHE_DIR / f"{name}.npz"
+    if not draws_path.exists():
+        raise FileNotFoundError(f"no cached fit for {name} at {draws_path}; run fit_or_load (2.25) first")
+    return cache.load_arrays(draws_path)
