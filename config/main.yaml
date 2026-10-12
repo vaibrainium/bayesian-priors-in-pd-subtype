@@ -1,5 +1,5 @@
 BEHAVIOR:
-  min_easy_accuracy: .6
+  min_easy_accuracy: .6 # default screen applied at load time (catalog.load_trials / load_metadata), not a pipeline filter
   min_rt: 0.1
   psych_model: "logit_4"
   max_lapse_rate: 0.4
