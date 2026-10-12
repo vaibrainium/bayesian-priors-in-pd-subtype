@@ -117,3 +117,14 @@ class CPUUnpickler(pickle.Unpickler):
 def load_model(path):
     with open(path, "rb") as f:
         return CPUUnpickler(f).load()
+
+
+def get_simulated_data(model_struct, behavior_df):
+    session_data = prepare_data(
+        behavior_df,
+        session_id=model_struct["job"]["session_id"],
+        color=int(model_struct["job"]["color"]),
+    )
+    stimulus = build_stimulus(session_data)
+    sim_data = model_struct["model"].simulate(stimulus=stimulus, params=model_struct["results"]["parameters"], n_reps=1)
+    return session_data, pd.DataFrame(sim_data)
