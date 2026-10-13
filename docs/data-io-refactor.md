@@ -93,6 +93,16 @@ caches still load without refitting. The cache locations are also unchanged: `pr
 and `outputs/robustness_cache`. Notebooks that read the reported draws directly now call
 `mcmc_cache.cached_draws(name)`.
 
+**Full posterior in the MCMC cache (added 13 Oct 2026).** The cache used to keep only the
+population-level draws (`beta`). So 2.26 and 2.28 sampled the model again to get the per-subject
+draws, then asserted the new population draws matched the cache bit for bit. That assertion failed
+after the rebuild. Re-sampling with identical data, settings, seed and library versions
+reproduced itself exactly on one machine, but not the fit cached from another kernel. NUTS draws
+are only bit-reproducible within the same compute environment. `fit_or_load` now also caches `sd_u`,
+`z_u` and the subject order, and 2.26 and 2.28 read the reported posterior instead of re-sampling.
+Every notebook therefore uses the same draws, whichever machine sampled them. A cache written
+before this change has no `z_u`, so it is sampled once more on its next use.
+
 ### Functions moved out of notebooks
 
 Only functions that were identical in every copy and didn't rely on notebook variables were moved:

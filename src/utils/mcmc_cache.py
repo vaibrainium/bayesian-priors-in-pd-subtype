@@ -11,10 +11,11 @@ the exact design matrix that produced it. Changing the trial data changes the fi
 a refit; an unchanged fingerprint means the stored draws are exactly what the recorded seed produces,
 so the cache is a shortcut rather than a second source of truth.
 
-Only what the manuscript reports is stored: the population-level `beta` draws (chain x draw x term),
-the divergence flags, and the convergence diagnostics, which is everything the tables and figures use.
-Re-running with `refit=True` regenerates the full InferenceData if the by-subject deviations are ever
-needed.
+The cache holds the whole posterior the notebooks use: the population-level `beta` draws (chain x
+draw x term), the by-subject deviations (`sd_u`, and `z_u` with one row per subject in `subjects`
+order), the divergence flags and the convergence diagnostics. Notebooks that need participant-level
+effects (2.26, 2.28) read these draws instead of sampling again, so every notebook reports the same
+posterior regardless of which machine sampled it.
 
 R-hat and bulk-ESS are computed here rather than through arviz, and cached alongside the draws. They
 are the rank-normalised split diagnostics of Vehtari et al. (2021), verified to reproduce
@@ -185,6 +186,9 @@ class MCMCFit:
     n_subjects: int
     n_trials: int
     settings: dict = field(default_factory=dict)
+    sd_u: np.ndarray | None = None  # (chain, draw, term): between-subject SD of each effect
+    z_u: np.ndarray | None = None  # (chain, draw, subject, term): standardised subject deviations
+    subjects: tuple = ()  # row order of z_u
 
     @property
     def draws(self):
@@ -279,42 +283,50 @@ def fit_or_load(name, subset, settings=None, refit=False):
     """Posterior for one subtype as an `MCMCFit`, loaded from `CACHE_DIR` when the cache is valid."""
     name = SUBTYPE_CACHE_NAME.get(name, name)
     settings = dict(settings or FIT_SETTINGS)
-    design, outcomes, subject_index, _ = build_design(subset)
+    design, outcomes, subject_index, subjects = build_design(subset)
     fingerprint = _fingerprint(design, outcomes, subject_index)
 
     draws_path = CACHE_DIR / f"{name}.npz"
     meta_path = CACHE_DIR / f"{name}.json"
 
-    def as_fit(beta, diverging, term_rhat, term_ess):
+    def as_fit(arrays):
         return MCMCFit(
-            beta=beta,
-            diverging=diverging,
-            rhat=term_rhat,
-            ess_bulk=term_ess,
+            beta=arrays["beta"],
+            diverging=arrays["diverging"],
+            rhat=arrays["rhat"],
+            ess_bulk=arrays["ess_bulk"],
             n_subjects=int(subset["subject_id"].nunique()),
             n_trials=int(len(subset)),
             settings=settings,
+            sd_u=arrays["sd_u"],
+            z_u=arrays["z_u"],
+            subjects=tuple(arrays["subjects"]),
         )
 
     if not refit and _check_sidecar(meta_path, fingerprint, settings) is not None and draws_path.exists():
         cached = cache.load_arrays(draws_path)
-        beta, diverging = cached["beta"], cached["diverging"]
-        if "rhat" in cached:
-            term_rhat, term_ess = cached["rhat"], cached["ess_bulk"]
+        if "z_u" not in cached:
+            print(f"{name}: cache predates the stored subject-level draws, sampling again")
+        elif list(cached["subjects"]) != list(subjects):
+            print(f"{name}: cached subject order differs from the trial data, sampling again")
         else:
-            # Written before diagnostics were cached. They are a deterministic function of the stored
-            # draws, so fill them in and rewrite rather than discarding a good fit.
-            term_rhat, term_ess = _diagnose(beta)
-            cache.save_arrays(draws_path, beta=beta, diverging=diverging, rhat=term_rhat, ess_bulk=term_ess)
-            print(f"{name}: added diagnostics to the existing cache")
-        print(f"{name}: loaded cached draws (seed {settings['seed']}, fingerprint {fingerprint})")
-        return as_fit(beta, diverging, term_rhat, term_ess)
+            print(f"{name}: loaded cached draws (seed {settings['seed']}, fingerprint {fingerprint})")
+            return as_fit(cached)
 
     idata = sample_model(subset, **settings)
     beta = idata.posterior["beta"].values
     diverging = idata.sample_stats["diverging"].values
     term_rhat, term_ess = _diagnose(beta)
-    cache.save_arrays(draws_path, beta=beta, diverging=diverging, rhat=term_rhat, ess_bulk=term_ess)
+    arrays = {
+        "beta": beta,
+        "diverging": diverging,
+        "rhat": term_rhat,
+        "ess_bulk": term_ess,
+        "sd_u": idata.posterior["sd_u"].values,
+        "z_u": idata.posterior["z_u"].values,
+        "subjects": np.asarray(subjects, dtype=str),
+    }
+    cache.save_arrays(draws_path, **arrays)
     cache.write_sidecar(
         meta_path,
         _sidecar(
@@ -325,7 +337,7 @@ def fit_or_load(name, subset, settings=None, refit=False):
         ),
     )
     print(f"{name}: sampled and cached to {draws_path.relative_to(CACHE_DIR.parents[1])}")
-    return as_fit(beta, diverging, term_rhat, term_ess)
+    return as_fit(arrays)
 
 
 def loso_or_load(name, subset, settings=None, refit=False):
@@ -376,7 +388,7 @@ def loso_or_load(name, subset, settings=None, refit=False):
 
 
 def cached_draws(name):
-    """The stored arrays of a reported fit (`beta`, `diverging`, `rhat`, `ess_bulk`), read only.
+    """The stored arrays of a reported fit (`beta`, `sd_u`, `z_u`, `subjects`, ...), read only.
 
     For notebooks that need the reported draws without the trial data that `fit_or_load` checks
     them against. Raises if `fit_or_load` has not cached that subtype yet.
