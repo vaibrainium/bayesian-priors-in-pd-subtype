@@ -31,10 +31,10 @@ session, same columns) -> 0.10 joins them -> 0.20 preprocesses -> 0.30 / 0.40 ad
 No stage removes sessions for low accuracy. 0.20 records each session's accuracy on 100%-coherence
 trials (easy_accuracy_pct, in %), and the loaders keep only subjects whose sessions all reach the threshold
 (config BEHAVIOR.min_easy_accuracy unless given; None keeps everyone). A second load-time screen drops
-subjects with a session that did not run the intended design, i.e. whose "equal" colour is not ~50:50
-because both colours carried a 75:25 prior (config BEHAVIOR.max_equal_prior_bias, measured by
-src.utils.sessions.equal_prior_bias; None switches it off). Pipeline stages read with
-min_easy_accuracy=None, max_equal_prior_bias=None so their files cover every session.
+subjects with a session that did not run the intended design: the presented targets of the prior colour
+must split 75:25 and those of the equal colour 50:50 (config BEHAVIOR.prior_design_tolerance and
+prior_base_rates, measured by src.utils.sessions.prior_design_error; None switches it off). Pipeline
+stages read with min_easy_accuracy=None, prior_design_tolerance=None so their files cover every session.
 
 Session metadata is built in stages, and each stage writes its own file under processed/metadata/,
 keyed by session_id. No stage rewrites another's file; catalog.load_metadata() joins them.

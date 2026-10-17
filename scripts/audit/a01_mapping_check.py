@@ -4,7 +4,7 @@ import pandas as pd
 
 from src.data_io import catalog
 
-c = catalog.load_trials(stage="compiled", min_easy_accuracy=None, max_equal_prior_bias=None)
+c = catalog.load_trials(stage="compiled", min_easy_accuracy=None, prior_design_tolerance=None)
 rows = []
 for sess, d in c.groupby("session_filename", sort=False):
     rec = {"session_filename": sess, "subject_id": d.subject_id.iat[0], "medication": d.medication.iat[0], "prior_label": d.prior.iat[0], "n": len(d)}

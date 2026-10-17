@@ -143,20 +143,29 @@ def easy_accuracy_pct(trials, min_rt):
     return pd.Series(accuracy, name="easy_accuracy_pct", dtype=float)
 
 
-def equal_prior_bias(trials, min_rt):
-    """Each session's departure of its less-biased colour from 50:50, indexed by `session_filename`.
 
-    The task pairs a 75:25 colour with a 50:50 colour. In a correctly run session the less-biased
-    colour sends about half its targets to each side, so this is near 0 (at most 0.062
-    in the current data). Seven raw sessions instead ran a 75:25 prior on both colours, to
-    opposite sides, and score about 0.25 (HC13, P9 ON, P28 OFF, P29 OFF, P30 ON, P32 ON, P33 ON). The design screen (`catalog.passing_subjects`) is applied
-    to this quantity.
+def prior_design_error(trials, base_rates=(0.75, 0.5)):
+    """How far each session's presented targets depart from the intended priors, by `session_filename`.
 
-    Works on compiled tables (target "left"/"right", colour "green"/"red") and processed tables
-    (target 1 = favoured side, colour 1 = prior colour): the measure depends on neither coding.
-    Sessions where both colours are 50:50 (prior "eq") score near 0 as well; they are handled elsewhere.
+    Every session should pair one colour whose targets go to the favoured side at `base_rates[0]`
+    (75:25) with one colour at `base_rates[1]` (50:50). Trial lists have fixed counts, so a correctly
+    run session matches both to within a percentage point. The measure uses every presented trial
+    with a colour and a target, valid or not, because the design is what was shown, not what was answered.
+
+    Returns `biased_pct` and `equal_pct` (the more- and less-biased colour's split, in % toward its
+    majority side) and `prior_design_error`, the larger of the two departures as a proportion:
+    max(| |p_biased - 0.5| - (base_rates[0] - 0.5) |, | |p_equal - 0.5| - |base_rates[1] - 0.5| |).
+    The design screen (`catalog.passing_subjects`) is applied to `prior_design_error`.
+
+    In the current raw data correct sessions score at most 0.017. Sessions with a 75:25 prior on both
+    colours (HC13, P9 ON, P28 OFF, P29 OFF, P30 ON, P32 ON, P33 ON) score about 0.25, and sessions with
+    a weaker prior or an unbalanced equal colour (P3 ON 62.5:37.5, HC7 and P8 OFF 68.75:31.25, P22 ON
+    68.75 / 56.25, P33 OFF 56.25 equal) score 0.0625 to 0.125. Works on compiled tables (target
+    "left"/"right") and processed tables (target 1 = favoured side) alike.
     """
-    valid = valid_trials(trials, min_rt).dropna(subset=["color", "target"])
-    side = valid["target"].eq("right") if valid["target"].dtype == object else valid["target"].astype(float)
-    per_colour = side.groupby([valid["session_filename"], valid["color"]]).mean().sub(0.5).abs()
-    return per_colour.groupby(level="session_filename").min().rename("equal_prior_bias")
+    shown = trials.dropna(subset=["color", "target"])
+    side = shown["target"].eq("right") if shown["target"].dtype == object else shown["target"].astype(float)
+    deviation = side.groupby([shown["session_filename"], shown["color"]]).mean().sub(0.5).abs().unstack()
+    biased, equal = deviation.max(axis=1), deviation.min(axis=1)
+    error = pd.concat([(biased - abs(base_rates[0] - 0.5)).abs(), (equal - abs(base_rates[1] - 0.5)).abs()], axis=1).max(axis=1)
+    return pd.DataFrame({"biased_pct": 100 * (0.5 + biased), "equal_pct": 100 * (0.5 + equal), "prior_design_error": error})

@@ -16,7 +16,7 @@ from src.utils.mcmc_cache import FIT_SETTINGS, ess_bulk, prepare_trials, rhat
 name = sys.argv[1]
 meta = session_table()
 pdm = meta[meta.group == "pd"]
-trials = catalog.load_trials(max_equal_prior_bias=None)
+trials = catalog.load_trials(prior_design_tolerance=None)
 subjects = pdm.subject_id.unique()
 if "excl2p" in name:
     bad = {sid.split("_")[0] for sid in TWO_PRIOR if "_" in sid}

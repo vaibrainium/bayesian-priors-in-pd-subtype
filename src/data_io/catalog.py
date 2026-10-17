@@ -13,7 +13,7 @@ Compiled and processed data keep every session, whatever its accuracy. `load_tri
 `load_metadata` read either stage (`stage="compiled"` or `"processed"`) and keep only subjects whose
 sessions all reach `min_easy_accuracy` on valid 100%-coherence trials (the config value unless
 given), and whose sessions all ran the intended design: one 75:25 colour and one 50:50 colour
-(`max_equal_prior_bias`, see `src.utils.sessions.equal_prior_bias`). Changing either threshold or the
+(`prior_design_tolerance`, see `src.utils.sessions.prior_design_error`). Changing either threshold or the
 stage needs no re-run of the pipeline.
 """
 
@@ -27,10 +27,11 @@ import pandas as pd
 
 from config import main_config
 from src.data_io.paths import ROOTS, writable
-from src.utils.sessions import easy_accuracy_pct, equal_prior_bias, valid_trials
+from src.utils.sessions import easy_accuracy_pct, prior_design_error, valid_trials
 
 DEFAULT_MIN_EASY_ACCURACY = main_config.BEHAVIOR.min_easy_accuracy
-DEFAULT_MAX_EQUAL_PRIOR_BIAS = main_config.BEHAVIOR.max_equal_prior_bias
+DEFAULT_PRIOR_DESIGN_TOLERANCE = main_config.BEHAVIOR.prior_design_tolerance
+PRIOR_BASE_RATES = tuple(main_config.BEHAVIOR.prior_base_rates)
 MIN_RT = main_config.BEHAVIOR.min_rt
 STAGES = ("compiled", "processed")
 
@@ -224,13 +225,14 @@ def _join_stage(metadata, stage, name):
     return metadata
 
 
-def passing_subjects(sessions, min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, max_equal_prior_bias=DEFAULT_MAX_EQUAL_PRIOR_BIAS):
+def passing_subjects(sessions, min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, prior_design_tolerance=DEFAULT_PRIOR_DESIGN_TOLERANCE):
     """Subjects whose every session in `sessions` passes both load-time screens.
 
     `sessions` has one row per session with `subject_id`, `easy_accuracy_pct` and, for the design
-    screen, `equal_prior_bias`. A session fails the accuracy screen when its accuracy (%) is below
-    `min_easy_accuracy * 100`, and the design screen when its less-biased colour departs from 50:50
-    by more than `max_equal_prior_bias` (a session that ran a 75:25 prior on both colours). Screening
+    screen, `prior_design_error`. A session fails the accuracy screen when its accuracy (%) is below
+    `min_easy_accuracy * 100`, and the design screen when either colour's presented targets depart
+    from their intended split (75:25 for the prior colour, 50:50 for the equal colour) by more than
+    `prior_design_tolerance`. Screening
     by subject rather than session keeps patients paired: a patient whose OFF or ON session fails is
     dropped entirely. `None` switches a screen off; a missing value (NaN) never fails a session.
     """
@@ -238,15 +240,15 @@ def passing_subjects(sessions, min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, max_
     if min_easy_accuracy is not None:
         # The preprocessing's session-rejection test, as it has always been applied.
         failed |= sessions["easy_accuracy_pct"] < min_easy_accuracy * 100
-    if max_equal_prior_bias is not None:
-        if "equal_prior_bias" not in sessions:
-            raise ValueError("the design screen needs an equal_prior_bias column; pass max_equal_prior_bias=None to skip it")
-        failed |= sessions["equal_prior_bias"] > max_equal_prior_bias
+    if prior_design_tolerance is not None:
+        if "prior_design_error" not in sessions:
+            raise ValueError("the design screen needs a prior_design_error column; pass prior_design_tolerance=None to skip it")
+        failed |= sessions["prior_design_error"] > prior_design_tolerance
     return set(sessions["subject_id"]) - set(sessions.loc[failed, "subject_id"])
 
 
 def _session_accuracy(stage):
-    """One row per screened session (`subject_id`, `easy_accuracy_pct`, `equal_prior_bias`) for a stage.
+    """One row per screened session (`subject_id`, `easy_accuracy_pct`, `prior_design_error`) for a stage.
 
     Processed: the accuracy column 0.20 stores. Compiled: computed from the session tables with the same
     function. Equal-prior sessions are not screened, as in processed data, which leaves them out;
@@ -260,22 +262,22 @@ def _session_accuracy(stage):
         sessions = _compiled_session_accuracy()[["subject_id", "session_filename", "easy_accuracy_pct"]]
         key = "session_filename"
     design = _session_design(stage)
-    sessions = sessions.assign(equal_prior_bias=sessions[key].map(design).to_numpy())
-    return sessions[["subject_id", "easy_accuracy_pct", "equal_prior_bias"]]
+    sessions = sessions.assign(prior_design_error=sessions[key].map(design["prior_design_error"]).to_numpy())
+    return sessions[["subject_id", "easy_accuracy_pct", "prior_design_error"]]
 
 
 def _session_design(stage):
-    """`equal_prior_bias` per `session_filename`, from the stage's valid-trial table (cached per file version)."""
-    file = path("trials_valid" if stage == "processed" else "compiled_trials")
+    """`prior_design_error` and its parts per `session_filename`, from every presented trial (cached per file version)."""
+    file = path("trials_all" if stage == "processed" else "compiled_trials")
     return _session_design_cached(stage, file.stat().st_mtime_ns).copy()
 
 
 @lru_cache(maxsize=4)
 def _session_design_cached(stage, _mtime_ns):
-    trials = _load("trials_valid" if stage == "processed" else "compiled_trials")
+    trials = _load("trials_all" if stage == "processed" else "compiled_trials")
     if stage == "compiled":
         trials = trials[trials["prior"] != "eq"]
-    return equal_prior_bias(trials, MIN_RT)
+    return prior_design_error(trials, PRIOR_BASE_RATES)
 
 
 def _compiled_session_accuracy():
@@ -295,7 +297,7 @@ def _check_stage(stage):
         raise ValueError(f"stage must be one of {STAGES}, not {stage!r}")
 
 
-def load_metadata(stages=METADATA_STAGES, ddm_params=False, min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage="processed", max_equal_prior_bias=DEFAULT_MAX_EQUAL_PRIOR_BIAS):
+def load_metadata(stages=METADATA_STAGES, ddm_params=False, min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage="processed", prior_design_tolerance=DEFAULT_PRIOR_DESIGN_TOLERANCE):
     """Session metadata for the subjects passing both screens (`None` for both keeps every subject).
 
     `stage="processed"` (default): one row per session, the 0.20 session table with each later
@@ -310,7 +312,7 @@ def load_metadata(stages=METADATA_STAGES, ddm_params=False, min_easy_accuracy=DE
     The index is reset, so row labels are positions.
     """
     _check_stage(stage)
-    keep = passing_subjects(_session_accuracy(stage), min_easy_accuracy, max_equal_prior_bias)
+    keep = passing_subjects(_session_accuracy(stage), min_easy_accuracy, prior_design_tolerance)
     if stage == "compiled":
         if ddm_params:
             raise ValueError("DDM parameters are joined onto processed metadata only")
@@ -328,7 +330,7 @@ def load_metadata(stages=METADATA_STAGES, ddm_params=False, min_easy_accuracy=DE
     return metadata
 
 
-def load_trials(kind="valid", min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage="processed", max_equal_prior_bias=DEFAULT_MAX_EQUAL_PRIOR_BIAS):
+def load_trials(kind="valid", min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage="processed", prior_design_tolerance=DEFAULT_PRIOR_DESIGN_TOLERANCE):
     """Trial table for the subjects passing both screens (`None` for both keeps every subject).
 
     `kind="valid"`: valid trials above the reaction-time floor, the input to most analyses.
@@ -348,7 +350,7 @@ def load_trials(kind="valid", min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage
             trials = valid_trials(trials, MIN_RT)
     else:
         trials = _load({"valid": "trials_valid", "all": "trials_all"}[kind])
-    keep = passing_subjects(_session_accuracy(stage), min_easy_accuracy, max_equal_prior_bias)
+    keep = passing_subjects(_session_accuracy(stage), min_easy_accuracy, prior_design_tolerance)
     return trials[trials["subject_id"].isin(keep)].reset_index(drop=True)
 
 

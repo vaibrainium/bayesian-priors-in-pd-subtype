@@ -59,7 +59,7 @@ pd.set_option("display.width", 250)
 print(res.round(3).T)
 
 # (C) eq sessions
-c = catalog.load_trials(stage="compiled", min_easy_accuracy=None, max_equal_prior_bias=None)
+c = catalog.load_trials(stage="compiled", min_easy_accuracy=None, prior_design_tolerance=None)
 c = valid_trials(c, 0.1) if c.reaction_time.max() < 50 else c[(c.is_valid == True) & (c.reaction_time >= 100)]
 meta = session_table()
 rows = []

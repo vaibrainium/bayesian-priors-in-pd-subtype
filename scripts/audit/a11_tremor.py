@@ -7,7 +7,7 @@ from scipy import stats
 from src.data_io import catalog
 
 s = pd.read_csv("outputs/audit/a09_session_k.csv")
-m = catalog.load_metadata(max_equal_prior_bias=None)
+m = catalog.load_metadata(prior_design_tolerance=None)
 pdx = s[s.group == "pd"]
 w = pdx.pivot(index="subject_id", columns="med", values=["b_col", "se_col", "k", "two_prior", "tremor_score", "bradykinesia_score", "UPDRS", "trem_vs_brady_type", "age", "acc100", "b_coh", "median_rt"])
 d = pd.DataFrame({

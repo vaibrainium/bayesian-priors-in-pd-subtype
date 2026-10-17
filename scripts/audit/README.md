@@ -2,7 +2,7 @@
 
 Analyses behind the report "Learned priors in PD: analysis audit and manuscript strategy"
 (https://claude.ai/code/artifact/aa4716e6-de04-4297-8168-b4fecd455d6c). Run from the repo root with
-`.venv/bin/python -m scripts.audit.<name>`; every output goes to `outputs/audit/`. Nothing writes to the data dirs. The scripts load with `max_equal_prior_bias=None`, so they reproduce
+`.venv/bin/python -m scripts.audit.<name>`; every output goes to `outputs/audit/`. Nothing writes to the data dirs. The scripts load with `prior_design_tolerance=None`, so they reproduce
 the report (which handled the two-prior sessions itself via `TWO_PRIOR`); the project default now drops those subjects.
 
 | Script | What it does |

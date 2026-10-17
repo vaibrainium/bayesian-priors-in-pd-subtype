@@ -5,7 +5,7 @@ from scipy import stats
 
 from src.data_io import catalog
 
-m = catalog.load_metadata(max_equal_prior_bias=None)
+m = catalog.load_metadata(prior_design_tolerance=None)
 d = pd.read_csv("outputs/audit/a11_patient_changes.csv").set_index("subject_id")
 d20 = d[d.subtype.isin(["tremor", "bradykinetic"])].copy()
 off = m[m.treatment == "OFF"].set_index("subject_id")

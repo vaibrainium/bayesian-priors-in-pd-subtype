@@ -1,6 +1,7 @@
 BEHAVIOR:
   min_easy_accuracy: .6 # default screen applied at load time (catalog.load_trials / load_metadata), not a pipeline filter
-  max_equal_prior_bias: .1 # design screen at load time: drop subjects with a session whose 'equal' colour is not ~50:50 (both colours biased); None disables
+  prior_design_tolerance: .05 # design screen at load time: drop subjects with a session whose presented targets miss 75:25 (prior colour) or 50:50 (equal colour) by more than this; None disables
+  prior_base_rates: [.75, .5] # intended split of the prior colour and the equal colour
   min_rt: 0.1
   psych_model: "logit_4"
   max_lapse_rate: 0.4

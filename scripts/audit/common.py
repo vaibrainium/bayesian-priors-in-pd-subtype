@@ -9,7 +9,7 @@ TWO_PRIOR = {"HC13", "P28_OFF", "P29_OFF", "P32_ON", "P33_ON", "P9_ON"}  # both 
 
 
 def trials(kind="valid", **kw):
-    t = catalog.load_trials(kind=kind, **{"max_equal_prior_bias": None, **kw})
+    t = catalog.load_trials(kind=kind, **{"prior_design_tolerance": None, **kw})
     t = t.copy()
     t["signed_choice"] = t["choice"] * 2 - 1
     t["rc"] = t["signed_choice"] * np.where(t["outcome"] == 1, 1, -1)
@@ -25,7 +25,7 @@ def trials(kind="valid", **kw):
 
 def session_table():
     """One row per analysed session with design factors (order, mapping, site)."""
-    m = catalog.load_metadata(max_equal_prior_bias=None)
+    m = catalog.load_metadata(prior_design_tolerance=None)
     m = m.copy()
     m["group"] = np.where(m["is_pd"] == 1, "pd", "hc")
     m["med"] = m["treatment"].str.lower()
