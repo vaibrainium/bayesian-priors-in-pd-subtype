@@ -12,11 +12,14 @@ one stage can never silently drop or corrupt the columns another stage added.
 Compiled and processed data keep every session, whatever its accuracy. `load_trials` and
 `load_metadata` read either stage (`stage="compiled"` or `"processed"`) and keep only subjects whose
 sessions all reach `min_easy_accuracy` on valid 100%-coherence trials (the config value unless
-given). Changing the threshold or the stage needs no re-run of the pipeline.
+given), and whose sessions all ran the intended design: one 75:25 colour and one 50:50 colour
+(`max_equal_prior_bias`, see `src.utils.sessions.equal_prior_bias`). Changing either threshold or the
+stage needs no re-run of the pipeline.
 """
 
 import json
 import pickle
+from functools import lru_cache
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -24,9 +27,10 @@ import pandas as pd
 
 from config import main_config
 from src.data_io.paths import ROOTS, writable
-from src.utils.sessions import easy_accuracy_pct, valid_trials
+from src.utils.sessions import easy_accuracy_pct, equal_prior_bias, valid_trials
 
 DEFAULT_MIN_EASY_ACCURACY = main_config.BEHAVIOR.min_easy_accuracy
+DEFAULT_MAX_EQUAL_PRIOR_BIAS = main_config.BEHAVIOR.max_equal_prior_bias
 MIN_RT = main_config.BEHAVIOR.min_rt
 STAGES = ("compiled", "processed")
 
@@ -220,31 +224,58 @@ def _join_stage(metadata, stage, name):
     return metadata
 
 
-def passing_subjects(sessions, min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY):
-    """Subjects whose every session in `sessions` reaches `min_easy_accuracy` on easy trials.
+def passing_subjects(sessions, min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, max_equal_prior_bias=DEFAULT_MAX_EQUAL_PRIOR_BIAS):
+    """Subjects whose every session in `sessions` passes both load-time screens.
 
-    `sessions` has one row per session with `subject_id` and `easy_accuracy_pct`. Screening by subject
-    rather than session keeps patients paired: a patient whose OFF or ON session fails is dropped
-    entirely. `None` keeps everyone.
+    `sessions` has one row per session with `subject_id`, `easy_accuracy_pct` and, for the design
+    screen, `equal_prior_bias`. A session fails the accuracy screen when its accuracy (%) is below
+    `min_easy_accuracy * 100`, and the design screen when its less-biased colour departs from 50:50
+    by more than `max_equal_prior_bias` (a session that ran a 75:25 prior on both colours). Screening
+    by subject rather than session keeps patients paired: a patient whose OFF or ON session fails is
+    dropped entirely. `None` switches a screen off; a missing value (NaN) never fails a session.
     """
-    if min_easy_accuracy is None:
-        return set(sessions["subject_id"])
-    # The preprocessing's session-rejection test: a session fails when its accuracy (%) is below
-    # min_easy_accuracy * 100. A session with no 100%-coherence trials (NaN) does not fail.
-    failed = sessions["easy_accuracy_pct"] < min_easy_accuracy * 100
+    failed = pd.Series(False, index=sessions.index)
+    if min_easy_accuracy is not None:
+        # The preprocessing's session-rejection test, as it has always been applied.
+        failed |= sessions["easy_accuracy_pct"] < min_easy_accuracy * 100
+    if max_equal_prior_bias is not None:
+        if "equal_prior_bias" not in sessions:
+            raise ValueError("the design screen needs an equal_prior_bias column; pass max_equal_prior_bias=None to skip it")
+        failed |= sessions["equal_prior_bias"] > max_equal_prior_bias
     return set(sessions["subject_id"]) - set(sessions.loc[failed, "subject_id"])
 
 
 def _session_accuracy(stage):
-    """One row per screened session (`subject_id`, `easy_accuracy_pct`) for a stage.
+    """One row per screened session (`subject_id`, `easy_accuracy_pct`, `equal_prior_bias`) for a stage.
 
-    Processed: the column 0.20 stores. Compiled: computed from the session tables with the same
+    Processed: the accuracy column 0.20 stores. Compiled: computed from the session tables with the same
     function. Equal-prior sessions are not screened, as in processed data, which leaves them out;
-    their subject passes or fails on the biased sessions.
+    their subject passes or fails on the biased sessions. The design measure is computed from the
+    stage's trial table at load time (see `_session_design`).
     """
     if stage == "processed":
-        return _load("metadata_sessions")[["subject_id", "easy_accuracy_pct"]]
-    return _compiled_session_accuracy()[["subject_id", "easy_accuracy_pct"]]
+        sessions = _load("metadata_sessions")[["subject_id", "file_name", "easy_accuracy_pct"]]
+        key = "file_name"
+    else:
+        sessions = _compiled_session_accuracy()[["subject_id", "session_filename", "easy_accuracy_pct"]]
+        key = "session_filename"
+    design = _session_design(stage)
+    sessions = sessions.assign(equal_prior_bias=sessions[key].map(design).to_numpy())
+    return sessions[["subject_id", "easy_accuracy_pct", "equal_prior_bias"]]
+
+
+def _session_design(stage):
+    """`equal_prior_bias` per `session_filename`, from the stage's valid-trial table (cached per file version)."""
+    file = path("trials_valid" if stage == "processed" else "compiled_trials")
+    return _session_design_cached(stage, file.stat().st_mtime_ns).copy()
+
+
+@lru_cache(maxsize=4)
+def _session_design_cached(stage, _mtime_ns):
+    trials = _load("trials_valid" if stage == "processed" else "compiled_trials")
+    if stage == "compiled":
+        trials = trials[trials["prior"] != "eq"]
+    return equal_prior_bias(trials, MIN_RT)
 
 
 def _compiled_session_accuracy():
@@ -253,7 +284,7 @@ def _compiled_session_accuracy():
     trials = trials[trials["prior"] != "eq"]
     accuracy = easy_accuracy_pct(trials, MIN_RT)
     sessions = trials.drop_duplicates("session_filename").set_index("session_filename")[["subject_id", "medication"]]
-    sessions = sessions.join(accuracy).reset_index(drop=True)
+    sessions = sessions.join(accuracy).rename_axis("session_filename").reset_index()
     if sessions.duplicated(["subject_id", "medication"]).any():
         raise ValueError("more than one biased-prior session for a subject and medication state")
     return sessions
@@ -264,8 +295,8 @@ def _check_stage(stage):
         raise ValueError(f"stage must be one of {STAGES}, not {stage!r}")
 
 
-def load_metadata(stages=METADATA_STAGES, ddm_params=False, min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage="processed"):
-    """Session metadata for the subjects passing `min_easy_accuracy` (`None` keeps every subject).
+def load_metadata(stages=METADATA_STAGES, ddm_params=False, min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage="processed", max_equal_prior_bias=DEFAULT_MAX_EQUAL_PRIOR_BIAS):
+    """Session metadata for the subjects passing both screens (`None` for both keeps every subject).
 
     `stage="processed"` (default): one row per session, the 0.20 session table with each later
     stage's columns joined on. `stages` limits the join to the stages a pipeline step depends on
@@ -279,7 +310,7 @@ def load_metadata(stages=METADATA_STAGES, ddm_params=False, min_easy_accuracy=DE
     The index is reset, so row labels are positions.
     """
     _check_stage(stage)
-    keep = passing_subjects(_session_accuracy(stage), min_easy_accuracy)
+    keep = passing_subjects(_session_accuracy(stage), min_easy_accuracy, max_equal_prior_bias)
     if stage == "compiled":
         if ddm_params:
             raise ValueError("DDM parameters are joined onto processed metadata only")
@@ -297,8 +328,8 @@ def load_metadata(stages=METADATA_STAGES, ddm_params=False, min_easy_accuracy=DE
     return metadata
 
 
-def load_trials(kind="valid", min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage="processed"):
-    """Trial table for the subjects passing `min_easy_accuracy` (`None` keeps every subject).
+def load_trials(kind="valid", min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage="processed", max_equal_prior_bias=DEFAULT_MAX_EQUAL_PRIOR_BIAS):
+    """Trial table for the subjects passing both screens (`None` for both keeps every subject).
 
     `kind="valid"`: valid trials above the reaction-time floor, the input to most analyses.
     `kind="all"`: every trial, including invalid ones (the GLM-HMM needs the full sequence).
@@ -317,7 +348,7 @@ def load_trials(kind="valid", min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage
             trials = valid_trials(trials, MIN_RT)
     else:
         trials = _load({"valid": "trials_valid", "all": "trials_all"}[kind])
-    keep = passing_subjects(_session_accuracy(stage), min_easy_accuracy)
+    keep = passing_subjects(_session_accuracy(stage), min_easy_accuracy, max_equal_prior_bias)
     return trials[trials["subject_id"].isin(keep)].reset_index(drop=True)
 
 

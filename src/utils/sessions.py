@@ -141,3 +141,22 @@ def easy_accuracy_pct(trials, min_rt):
         session_data = valid[valid["session_filename"] == session]
         accuracy[session] = np.mean(session_data["outcome"][np.abs(session_data["coherence"]) == 100]) * 100
     return pd.Series(accuracy, name="easy_accuracy_pct", dtype=float)
+
+
+def equal_prior_bias(trials, min_rt):
+    """Each session's departure of its less-biased colour from 50:50, indexed by `session_filename`.
+
+    The task pairs a 75:25 colour with a 50:50 colour. In a correctly run session the less-biased
+    colour sends about half its targets to each side, so this is near 0 (at most 0.062
+    in the current data). Seven raw sessions instead ran a 75:25 prior on both colours, to
+    opposite sides, and score about 0.25 (HC13, P9 ON, P28 OFF, P29 OFF, P30 ON, P32 ON, P33 ON). The design screen (`catalog.passing_subjects`) is applied
+    to this quantity.
+
+    Works on compiled tables (target "left"/"right", colour "green"/"red") and processed tables
+    (target 1 = favoured side, colour 1 = prior colour): the measure depends on neither coding.
+    Sessions where both colours are 50:50 (prior "eq") score near 0 as well; they are handled elsewhere.
+    """
+    valid = valid_trials(trials, min_rt).dropna(subset=["color", "target"])
+    side = valid["target"].eq("right") if valid["target"].dtype == object else valid["target"].astype(float)
+    per_colour = side.groupby([valid["session_filename"], valid["color"]]).mean().sub(0.5).abs()
+    return per_colour.groupby(level="session_filename").min().rename("equal_prior_bias")
