@@ -84,8 +84,67 @@ Observations that may help trace the cause:
   but ran correctly, so the label alone does not cause it.
 - **The original files agree.** The Harvard `H25`–`H33` `.mat` files in `raw/harvard_data/pd/` show exactly the same
   splits as the trial fragments the pipeline compiles. The problem is in the original recordings, not the compile step.
-- **Still to confirm.** It should be checked against the Harvard and Stanford task code. Until then, treat these
-  sessions as not usable for prior analyses.
+- **Still to confirm.** The Harvard sessions were run this way (see the run-level investigation below). P22 ON, P3 ON and P8 OFF
+  are Stanford single-file sessions and still need checking against the Stanford task code.
+
+### Harvard run-level investigation (2026-10-18)
+
+Harvard sessions were run as one or more practice blocks plus about four trial blocks of 160 trials. Each block is a
+separate file named `YYMMDD_HHMMSS.mat` under `raw/harvard_data/{pd,hc}/<subject>/{practice,trial}/`.
+`scripts/audit/a22_harvard_runs.py` decodes every block (outputs `outputs/audit/a22_harvard_runs.csv` and
+`a22_harvard_sessions.csv`).
+
+**The correct pattern.** Practice blocks are 50:50 on both colours. Every trial block holds 80 trials of each colour,
+with exactly 60 of 80 targets on the favoured side for the prior colour and 40 of 80 for the equal colour, and the
+same condition in every block.
+
+**The two-prior sessions were genuinely run that way.** They are not a combining or decoding error:
+
+- **Every block, exact counts.** In each affected block, green sent exactly 60 of 80 targets right and red sent exactly
+  20 of 80 right (condition "gr + rl"). This holds in every block of P30 ON, P28 OFF, P33 ON, P29 OFF, P32 ON and HC13,
+  so the trial lists were generated that way.
+- **Combining is correct.** 0.00 concatenates only the `trial/` blocks, sorted by file name (that is, by time), and
+  compiled trial counts equal the sum of the blocks (e.g. P28 OFF: 160 + 160 + 55 + 160 + 160 = 695, the 55-trial block
+  being an aborted run).
+- **No event code records the setting.** Correct and two-prior blocks use identical codes in all ten event columns.
+
+**When it happened.** All two-prior blocks fall between 2025-05-13 and 2025-06-10:
+
+| Date | Session | Blocks |
+|---|---|---|
+| 2025-05-13 | P30 ON | gr + rl ×4 |
+| 2025-05-16 | P32 OFF | gr ×4 (correct) |
+| 2025-05-20 | P28 OFF | gr + rl ×5 (one aborted) |
+| 2025-05-20 | P33 ON | gr + rl ×4 |
+| 2025-05-21 | P29 OFF | gr + rl ×4 |
+| 2025-05-30 | P31 ON | gr ×4 (correct) |
+| 2025-06-03 | P30 OFF | gr ×4 (correct) |
+| 2025-06-06 | P32 ON | gr + rl ×4 |
+| 2025-06-06 | P28 ON | gl ×4 (correct) |
+| 2025-06-10 07:22 | HC13 | gr + rl ×4 |
+| 2025-06-10 10:34 | P33 OFF | block 1 gr + rl, blocks 2–4 gr |
+
+- **Only red-prior sessions were affected.** In that window, every session with a red-left prior also had green set to
+  75% right, while every green-prior session ran correctly. The red-prior sessions run in February and March (HC2 rl,
+  HC7 rr, P25 OFF rl, P27 OFF rl, P25 ON rr) were correct, and no red-prior session was run in April.
+- **The intended condition was probably red-left.** The extra prior is always green-right, and red-left fits each
+  patient's counterbalancing (their other session used a different colour). This is an inference; confirm it from the
+  task settings or run sheets.
+- **It stopped on 2025-06-10 between 10:34 and 10:42.** P33 OFF's first block ran with both priors, and its next three
+  blocks ran correctly as green-right. No two-prior block occurs after that.
+- **A settings problem, not a code change between blocks.** The pattern fits per-colour prior settings that were not
+  reset when a red prior was entered. The leftover-setting explanation fits P33 OFF (HC13, run that morning, had
+  red-left set) but not P30 ON (the previous session, P29 ON, was green-left). A default of green-right fits both.
+
+**Other block-level findings.**
+
+- **HC7 (2025-02-28).** Block 1 ran with no prior (both colours 50:50) and block 2 is a one-trial aborted file. Blocks
+  3–5 are correct red-right, which is why the combined session shows 68.75%.
+- **Partial salvage.** HC7 could be analysed from blocks 3–5 only, and P33 OFF from blocks 2–4 only. Both participants
+  then experienced 160 trials of a different condition first, and P33 still has no usable ON session, so neither is
+  re-included by default.
+- **A stray practice file.** `pd/P26_on/practice/` holds a file dated 2025-04-28, 13 days after that session, plus a
+  two-row aborted file. Practice blocks are not compiled, so this does not affect any analysis.
 
 ## MoCA
 
