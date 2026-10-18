@@ -35,6 +35,8 @@ subjects with a session that did not run the intended design: the presented targ
 must split 75:25 and those of the equal colour 50:50 (config BEHAVIOR.prior_design_tolerance and
 prior_base_rates, measured by src.utils.sessions.prior_design_error; None switches it off). Pipeline
 stages read with min_easy_accuracy=None, prior_design_tolerance=None so their files cover every session.
+Who is kept under each screen, why, and what is known about excluded subjects (incl. the manual MoCA
+list): docs/data-screening.md.
 
 Session metadata is built in stages, and each stage writes its own file under processed/metadata/,
 keyed by session_id. No stage rewrites another's file; catalog.load_metadata() joins them.
