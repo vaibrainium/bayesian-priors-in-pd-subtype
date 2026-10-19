@@ -143,8 +143,18 @@ same condition in every block.
 - **Partial salvage.** HC7 could be analysed from blocks 3–5 only, and P33 OFF from blocks 2–4 only. Both participants
   then experienced 160 trials of a different condition first, and P33 still has no usable ON session, so neither is
   re-included by default.
-- **A stray practice file.** `pd/P26_on/practice/` holds a file dated 2025-04-28, 13 days after that session, plus a
-  two-row aborted file. Practice blocks are not compiled, so this does not affect any analysis.
+- **Practice files not from their session (P25–P27; removed from raw 2026-10-19).** Notebook 0.02 compares each
+  block's filename (program start), MAT header `Created on` (save) and `time` clock (monotonic, continuous through a
+  session). 15 of the 21 practice files in P25 OFF/ON, P26 OFF/ON and P27 OFF/ON failed: their header dates fall 13–45
+  days from the date in their names, which the task program cannot produce, so they were renamed, and all carry a
+  filesystem date of 2025-04-29 against 2025-04-21 for the sessions' genuine files. Three were byte-identical copies
+  (of HC7's and HC11's practice, and of P27 ON's own `250314_121934`). The other twelve were recorded on 2025-04-28:
+  three at 10:09–10:24 on HC11's clock after HC11's session, nine at 10:57–11:33 after a ~13 min clock pause (the same
+  laptop: that clock continues into HC12 and P31 OFF the next day). Their behaviour (78–100% valid, median RT 0.5–0.95 s)
+  differs from these patients' genuine practice (23–70% valid, 1.1–1.3 s). They and HC16's duplicate folder
+  `trial/h16_pract_2 last ones/` were removed from `raw/`; copies remain in `raw_backup_20261019/harvard_data/`.
+  P25 ON, P26 ON and P27 OFF therefore have no recorded practice; whether they had a practice phase is to be asked of
+  the Harvard team. Trial blocks were unaffected.
 
 ## MoCA
 
