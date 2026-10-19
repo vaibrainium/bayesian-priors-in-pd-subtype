@@ -60,6 +60,10 @@ DATASETS = {
     "raw_perugini_eye": Dataset("raw", "Perugini_2016/Reports_HC_Exp2"),
     # compiled: one trial table per session, then the aggregate tables
     "compiled_session": Dataset("compiled", "sessions/{filename}", "0.00 / 0.01"),
+    # Harvard, compiled from the raw block files with timing and design checks
+    "compiled_harvard_session": Dataset("compiled", "harvard/sessions/{filename}", "0.02"),
+    "compiled_harvard_blocks": Dataset("compiled", "harvard/blocks.csv", "0.02", read_kwargs={**_CSV_EXACT, "parse_dates": ["filename_time", "header_time"]}, write_kwargs=_CSV_NO_INDEX),
+    "compiled_harvard_session_summary": Dataset("compiled", "harvard/session_summary.csv", "0.02", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX),
     "compiled_trials": Dataset("compiled", "aggregate_all_data.csv", "0.10", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX, screened=True),
     "compiled_metadata": Dataset("compiled", "aggregate_all_metadata.csv", "0.10", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX, screened=True),
     # processed trials: every trial, and the valid trials above the reaction-time floor
