@@ -56,6 +56,7 @@ DATASETS = {
     "raw_session_metadata": Dataset("raw", "session_metadata_detailed_all_data.csv", read_kwargs={"encoding": "latin1"}),
     "raw_session_file": Dataset("raw", "{filename}"),  # per-session .mat files (UCLA, Stanford, Case Western)
     "raw_harvard_sessions": Dataset("raw", "harvard_data/{subject_type}"),
+    "raw_stanford_sessions": Dataset("raw", "stanford_data"),
     "raw_perugini_keypress": Dataset("raw", "Perugini_2016/Reports_HC_Exp2_KeyPress"),
     "raw_perugini_eye": Dataset("raw", "Perugini_2016/Reports_HC_Exp2"),
     # compiled: one trial table per session, then the aggregate tables
@@ -64,6 +65,10 @@ DATASETS = {
     "compiled_harvard_session": Dataset("compiled", "harvard/sessions/{filename}", "0.02"),
     "compiled_harvard_blocks": Dataset("compiled", "harvard/blocks.csv", "0.02", read_kwargs={**_CSV_EXACT, "parse_dates": ["filename_time", "header_time"]}, write_kwargs=_CSV_NO_INDEX),
     "compiled_harvard_session_summary": Dataset("compiled", "harvard/session_summary.csv", "0.02", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX),
+    # Stanford, the same way
+    "compiled_stanford_session": Dataset("compiled", "stanford/sessions/{filename}", "0.03"),
+    "compiled_stanford_blocks": Dataset("compiled", "stanford/blocks.csv", "0.03", read_kwargs={**_CSV_EXACT, "parse_dates": ["filename_time", "header_time"]}, write_kwargs=_CSV_NO_INDEX),
+    "compiled_stanford_session_summary": Dataset("compiled", "stanford/session_summary.csv", "0.03", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX),
     "compiled_trials": Dataset("compiled", "aggregate_all_data.csv", "0.10", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX, screened=True),
     "compiled_metadata": Dataset("compiled", "aggregate_all_metadata.csv", "0.10", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX, screened=True),
     # processed trials: every trial, and the valid trials above the reaction-time floor
