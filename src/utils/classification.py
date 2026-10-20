@@ -60,3 +60,35 @@ def get_subject_classification_ids(processed_metadata):
         "brady_on": subject_treatment_idx["on"].loc[subject_treatment_idx["subject"].isin(subjects_map["bradykinesia_dominant"])],
     }
     return subjects_map, grp_indices
+
+
+# --------------------------------------------------------------------------------------------- #
+# Motor subtype from the MDS-UPDRS (the rule of notebook 0.30)
+# --------------------------------------------------------------------------------------------- #
+
+
+def subtype_label(value, thresholds):
+    """Map a ratio onto one of the ordered [low, high] bins of a config table (`MDS_UPDRS.TREM_VS_BRADY`).
+
+    Bins are tested in config order and the first match wins (so a shared boundary belongs to the earlier bin); a
+    value outside every bin goes to the nearest end bin. The same rule as notebook 0.30's `get_label`.
+    """
+    if pd.isna(value):
+        return None
+    bins = list(thresholds.items())
+    for label, (low, high) in bins:
+        if low <= value <= high:
+            return label
+    return bins[0][0] if value < bins[0][1][0] else bins[-1][0]
+
+
+def tremor_bradykinesia_ratio(exam, tremor_items, bradykinesia_items):
+    """Mean tremor item score over mean bradykinesia item score for one UPDRS exam (a metadata row), as in 0.30.
+
+    Items that are missing or not numeric are ignored; returns the two means and their ratio (None when the
+    bradykinesia mean is zero or missing).
+    """
+    tremor = pd.to_numeric(exam[list(tremor_items)], errors="coerce").mean()
+    bradykinesia = pd.to_numeric(exam[list(bradykinesia_items)], errors="coerce").mean()
+    ratio = tremor / bradykinesia if bradykinesia and not pd.isna(bradykinesia) and not pd.isna(tremor) else None
+    return tremor, bradykinesia, ratio
