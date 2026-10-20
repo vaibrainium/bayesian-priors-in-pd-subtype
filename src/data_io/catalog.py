@@ -363,6 +363,26 @@ def load_trials(kind="valid", min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage
     return trials[trials["subject_id"].isin(keep)].reset_index(drop=True)
 
 
+BLOCK_SITES = ("harvard", "stanford")  # sites compiled from block files (0.02, 0.03)
+
+
+def load_block_sessions(sites=BLOCK_SITES, session_ids=None):
+    """The compiled trial tables of the block-recorded sites as one table, with a `site` column.
+
+    Every session is included as recorded (no accuracy or design screen), each trial labelled with its block, so
+    blocks can be picked with `src.utils.blocks.select_blocks`, e.g. only the correctly run blocks of a session that
+    ran with two priors. `session_ids` (e.g. ["P33_off", "HC7"]) limits the sessions read.
+    """
+    tables = []
+    for site in sites:
+        for file in sorted(files(f"compiled_{site}_session", filename="*.parquet")):
+            if session_ids is None or file.stem in session_ids:
+                tables.append(read(file).assign(site=site))
+    if not tables:
+        raise FileNotFoundError(f"no compiled sessions for {sites} {session_ids or ''}; they are written by 0.02 / 0.03")
+    return pd.concat(tables, ignore_index=True)
+
+
 # --------------------------------------------------------------------------------------------- #
 # Analysis outputs
 # --------------------------------------------------------------------------------------------- #

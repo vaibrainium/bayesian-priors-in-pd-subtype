@@ -42,7 +42,9 @@ from src.utils.sessions import SESSION_COLUMNS, decode_events, prior_design_erro
 
 LISTING_COLUMNS = ["session_id", "subject_id", "group", "medication", "phase", "file", "path"]
 INTERNAL_COLUMNS = ["path", "content_md5"]  # read-time only; not saved
-BLOCK_COLUMNS = ["session_id", "phase", "block", "block_file", "trial_in_block", "block_prior"]
+# Per-trial block columns of the compiled tables; `select_blocks` filters on them.
+BLOCK_COLUMNS = ["session_id", "phase", "block", "block_file", "trial_in_block", "block_prior", "block_prior_color", "block_prior_direction",
+                 "block_design_error", "block_design_ok", "block_matches_session_prior", "block_partial"]
 
 CLOCK_TOLERANCE_S = 60  # a block's header offset may differ from its session's by this much
 MAX_CLOCK_SHIFT_S = 3 * 3600  # larger same-day shifts than this are not taken for a sleep or a clock correction
@@ -278,9 +280,12 @@ def compile_sessions(blocks, decoded, summary, dataset):
     """Save each session with trial blocks as one trial table: used practice then trial blocks, each in time order.
 
     The table has `SESSION_COLUMNS` plus `BLOCK_COLUMNS`. `prior` is the session's prior (the one most complete
-    trial blocks imply); `prior_color` and `prior_direction` are filled only when it is a single colour.
+    trial blocks imply); `prior_color` and `prior_direction` are filled only when it is a single colour. Every trial
+    also carries its block's own prior (`block_prior`, `block_prior_color`, `block_prior_direction`), the block's
+    design error and whether it ran the intended design (`block_design_ok`, within the load-time design tolerance),
+    whether it implies the session's prior (`block_matches_session_prior`) and whether it is partial, so blocks can be
+    selected later with `select_blocks`. Practice blocks are never `block_design_ok` or `block_matches_session_prior`.
     """
-    colours, sides = {"g": "green", "r": "red"}, {"r": "right", "l": "left"}
     for session in summary[summary.n_trial_blocks > 0].itertuples():
         parts = []
         for phase in ("practice", "trial"):
@@ -290,16 +295,63 @@ def compile_sessions(blocks, decoded, summary, dataset):
                 trials["phase"], trials["block"], trials["block_file"] = phase, number, block.file
                 trials["trial_in_block"] = np.arange(1, len(trials) + 1)
                 trials["block_prior"] = block.block_prior
+                trials["block_prior_color"], trials["block_prior_direction"] = prior_parts(block.block_prior)
+                trials["block_design_error"] = block.design_error
+                trials["block_design_ok"] = phase == "trial" and block.design_error <= DESIGN_TOLERANCE
+                trials["block_matches_session_prior"] = phase == "trial" and block.block_prior == session.session_prior
+                trials["block_partial"] = bool(block.partial)
                 parts.append(trials)
         trials = pd.concat(parts, ignore_index=True)
-        single = session.session_prior in SINGLE_PRIORS
         trials["prior"] = session.session_prior
-        trials["prior_color"] = colours[session.session_prior[0]] if single else None
-        trials["prior_direction"] = sides[session.session_prior[1]] if single else None
+        trials["prior_color"], trials["prior_direction"] = prior_parts(session.session_prior)
         trials["session_id"], trials["subject_id"] = session.session_id, session.subject_id
         trials["group"], trials["medication"] = session.group, session.medication
         trials["session_filename"] = f"{session.session_id}.parquet"
         catalog.save(trials[SESSION_COLUMNS + BLOCK_COLUMNS], dataset, filename=f"{session.session_id}.parquet")
+
+
+def prior_parts(prior):
+    """(`prior_color`, `prior_direction`) for a single-colour prior such as `gl`; (None, None) otherwise."""
+    if prior not in SINGLE_PRIORS:
+        return None, None
+    return {"g": "green", "r": "red"}[prior[0]], {"r": "right", "l": "left"}[prior[1]]
+
+
+def select_blocks(trials, phase="trial", design_ok=None, matches_session_prior=None, priors=None, include_partial=True, relabel=False):
+    """Trials of the blocks meeting every given condition (None leaves a condition out).
+
+    `trials` is a compiled block-session table (`catalog.load_block_sessions`).
+
+    - `phase`: "trial" (default), "practice", or None for both;
+    - `design_ok`: True keeps blocks run as the intended design (75:25 on one colour, 50:50 on the other), dropping
+      two-prior and no-prior blocks; False keeps only those;
+    - `matches_session_prior`: True keeps blocks implying the session's prior (the one most of its complete blocks
+      show), False the others (e.g. P3 ON's first block, `gl` in a `gr` session);
+    - `priors`: block priors to keep, e.g. {"gr+rl"};
+    - `include_partial`: keep partial (aborted) blocks;
+    - `relabel`: set `prior`, `prior_color` and `prior_direction` to each block's own prior, so the selection can be
+      analysed as a condition of its own.
+
+    Examples: `select_blocks(t, design_ok=True)` for every correctly run block; `select_blocks(t, priors={"gr+rl"})`
+    for the two-prior blocks; `select_blocks(t, matches_session_prior=False, design_ok=True, relabel=True)` for the
+    correctly run blocks that used another prior than the rest of their session.
+    """
+    keep = pd.Series(True, index=trials.index)
+    if phase is not None:
+        keep &= trials.phase == phase
+    if design_ok is not None:
+        keep &= trials.block_design_ok == design_ok
+    if matches_session_prior is not None:
+        keep &= trials.block_matches_session_prior == matches_session_prior
+    if priors is not None:
+        keep &= trials.block_prior.isin(priors)
+    if not include_partial:
+        keep &= ~trials.block_partial
+    selected = trials[keep].copy()
+    if relabel:
+        selected["prior"] = selected.block_prior
+        selected["prior_color"], selected["prior_direction"] = selected.block_prior_color, selected.block_prior_direction
+    return selected
 
 
 # --------------------------------------------------------------------------------------------- #
