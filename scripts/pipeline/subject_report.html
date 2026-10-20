@@ -77,7 +77,7 @@ details.method li { margin: 3px 0; }
 .chip { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: var(--chip); color: var(--ink); white-space: nowrap; }
 .chip.subtype { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .chip.flag { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
-.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 10px; max-width: 760px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; max-width: 1080px; }
 .fact { background: var(--bg); border: 1px solid var(--rule); border-radius: 8px; padding: 9px 12px 10px; display: grid; gap: 6px; align-content: start; min-width: 0; }
 .fact .k { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
 .fact .v { font-size: 1.02rem; font-weight: 700; }
@@ -86,6 +86,7 @@ details.method li { margin: 3px 0; }
 .fact svg.scale { width: 100%; max-width: 260px; height: auto; display: block; }
 svg .seg { fill: var(--chip); }
 svg .seg.on { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; }
+svg .seg.low { fill: var(--warn-soft); }
 svg .marker { stroke: var(--ink); stroke-width: 1.5; }
 svg .marker-dot { fill: var(--ink); stroke: var(--surface); stroke-width: 1.5; }
 .timeline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -144,6 +145,7 @@ svg .bar-lab { fill: var(--ink); font: 10px var(--font-data); }
     <label for="site">Site <select id="site"><option value="">All</option></select></label>
     <label for="group">Group <select id="group"><option value="">All</option><option value="pd">Patients</option><option value="hc">Controls</option></select></label>
     <label for="subtype">Subtype <select id="subtype"><option value="">All</option></select></label>
+    <label for="moca">MoCA <select id="moca"><option value="">All</option><option value="low">≤ 26</option><option value="high">&gt; 26</option><option value="none">Not recorded</option><option value="list">On exclusion list</option></select></label>
     <label class="check" for="mixed"><input type="checkbox" id="mixed"> Mixed block priors only</label>
     <span class="count" id="count"></span>
   </div>
@@ -366,6 +368,45 @@ svg .bar-lab { fill: var(--ink); font: 10px var(--font-data); }
     return box;
   }
 
+  function mocaScale(scores) {
+    // 15-30 range, the list cutoff shaded; one marker per distinct session score
+    const w = 250, h = 40, l = 6, r = 6, top = 14, bar = 9, lo = 15, hi = 30, cut = data.moca_cutoff;
+    const sx = v => l + (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * (w - l - r);
+    const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, class: "scale", role: "img", "aria-label": "MoCA " + scores.map(x => x.v).join(", ") });
+    el("rect", { x: sx(lo), y: top, width: sx(cut + 0.5) - sx(lo) - 1, height: bar, rx: 2, class: "seg low" }, svg);
+    el("rect", { x: sx(cut + 0.5), y: top, width: sx(hi) - sx(cut + 0.5), height: bar, rx: 2, class: "seg" }, svg);
+    for (const t of [15, 20, cut, 30]) el("text", { class: "tick", x: sx(t), y: h - 2, "text-anchor": "middle" }, svg, t);
+    el("text", { class: "tick", x: (sx(lo) + sx(cut + 0.5)) / 2, y: top - 4, "text-anchor": "middle" }, svg, `≤ ${cut}`);
+    for (const { v, label } of scores) {
+      const mx = sx(v);
+      el("line", { x1: mx, x2: mx, y1: top - 2, y2: top + bar + 2, class: "marker" }, svg);
+      el("circle", { cx: mx, cy: top + bar / 2, r: 4, class: "marker-dot" }, svg);
+      if (label) el("text", { class: "tick", x: mx, y: top - 4, "text-anchor": "middle" }, svg, label);
+    }
+    return svg;
+  }
+
+  function mocaFact(sub) {
+    const box = fact("Cognition (MoCA)");
+    if (sub.moca === null) {
+      box.appendChild(html("div", "v na", "Not recorded"));
+      box.appendChild(html("div", "why", sub.moca_excluded_by_list
+        ? `On the manual MoCA ≤ ${data.moca_cutoff} exclusion list, but no score is recorded (${sub.moca_note}).`
+        : `No MoCA score (${sub.moca_note}).`));
+      return box;
+    }
+    const differ = sub.moca_off !== null && sub.moca_on !== null && sub.moca_off !== sub.moca_on;
+    box.appendChild(html("div", "v", `${sub.moca} / 30`));
+    const scores = differ ? [{ v: sub.moca_off, label: "OFF" }, { v: sub.moca_on, label: "ON" }] : [{ v: sub.moca, label: "" }];
+    box.appendChild(mocaScale(scores));
+    let why = sub.moca_source === "metadata"
+      ? (differ ? `OFF ${sub.moca_off}, ON ${sub.moca_on}; the lower score is shown.` : "From the metadata.")
+      : "From a Stanford clinical folder note; the metadata has no score.";
+    if (sub.moca_excluded_by_list) why += ` On the manual MoCA ≤ ${data.moca_cutoff} exclusion list.`;
+    box.appendChild(html("div", "why", why));
+    return box;
+  }
+
   function card(sub) {
     const art = html("article", "subject"); art.id = sub.id;
     const head = html("header");
@@ -373,14 +414,13 @@ svg .bar-lab { fill: var(--ink); font: 10px var(--font-data); }
     head.appendChild(html("span", "chip", sub.site));
     head.appendChild(html("span", "chip", sub.group === "pd" ? "patient" : "control"));
     if (sub.group === "pd") head.appendChild(html("span", "chip subtype", sub.subtype ? (SUBTYPE_NAMES[sub.subtype] || sub.subtype) : "subtype not classified"));
+    if (sub.moca_excluded_by_list) head.appendChild(html("span", "chip flag", "MoCA exclusion list"));
     if (sub.sessions.some(s => s.conditions.length > 1)) head.appendChild(html("span", "chip flag", "mixed block priors"));
     art.appendChild(head);
-    if (sub.group === "pd") {
-      const facts = html("div", "facts");
-      facts.appendChild(subtypeFact(sub));
-      facts.appendChild(orderFact(sub));
-      art.appendChild(facts);
-    }
+    const facts = html("div", "facts");
+    if (sub.group === "pd") { facts.appendChild(subtypeFact(sub)); facts.appendChild(orderFact(sub)); }
+    facts.appendChild(mocaFact(sub));
+    art.appendChild(facts);
     for (const s of sub.sessions) art.appendChild(sessionBlock(s));
     return art;
   }
@@ -400,6 +440,7 @@ svg .bar-lab { fill: var(--ink); font: 10px var(--font-data); }
     "All trial blocks: every trial block of the session pooled. Where blocks implied different priors, Prior conditions shows each prior on its own, with the blocks it covers.",
     "Practice: accuracy per colour when practice was at 100% coherence only; a psychometric function when it included lower coherences.",
     "Motor subtype: mean tremor item score divided by mean bradykinesia item score on the OFF-medication MDS-UPDRS exam, binned at 0.8 and 1.0 (rule of notebook 0.30); Stanford and Harvard patients only. The scale marks the patient's ratio.",
+    `MoCA: from the metadata, one score per session where recorded (the lower is shown when OFF and ON differ); otherwise from a note in a Stanford clinical folder name. The shaded part of the scale is ≤ ${data.moca_cutoff}, the cutoff of the manual exclusion list (config moca_rejection), whose patients have no score in the metadata.`,
     "Session order: from the recordings where they date the sessions (Harvard and Stanford session dates; Case Western clock when OFF and ON ran in one sitting), otherwise from the metadata, with a note on whether the two agree.",
   ];
   const ul = document.getElementById("method");
@@ -412,18 +453,21 @@ svg .bar-lab { fill: var(--ink); font: 10px var(--font-data); }
   const list = document.getElementById("list");
   const cards = subjects.map(s => { const c = card(s); list.appendChild(c); return [s, c]; });
   const q = document.getElementById("q"), grp = document.getElementById("group"), mixed = document.getElementById("mixed"), count = document.getElementById("count");
+  const mocaSel = document.getElementById("moca");
   function apply() {
     const text = q.value.trim().toLowerCase();
     let shown = 0;
     for (const [s, c] of cards) {
       const ok = (!text || s.id.toLowerCase().includes(text)) && (!siteSel.value || s.site === siteSel.value) && (!grp.value || s.group === grp.value)
         && (!subSel.value || (s.group === "pd" && (s.subtype || "not classified") === subSel.value))
-        && (!mixed.checked || s.sessions.some(x => x.conditions.length > 1));
+        && (!mixed.checked || s.sessions.some(x => x.conditions.length > 1))
+        && (!mocaSel.value || (mocaSel.value === "low" && s.moca !== null && s.moca <= data.moca_cutoff) || (mocaSel.value === "high" && s.moca !== null && s.moca > data.moca_cutoff)
+            || (mocaSel.value === "none" && s.moca === null) || (mocaSel.value === "list" && s.moca_excluded_by_list));
       c.hidden = !ok; if (ok) shown++;
     }
     count.textContent = `${shown} of ${subjects.length} subjects`;
   }
-  [q, siteSel, grp, subSel, mixed].forEach(e => e.addEventListener("input", apply));
+  [q, siteSel, grp, subSel, mocaSel, mixed].forEach(e => e.addEventListener("input", apply));
   apply();
   if (location.hash) { const t = document.getElementById(location.hash.slice(1)); if (t) t.scrollIntoView(); }
 })();

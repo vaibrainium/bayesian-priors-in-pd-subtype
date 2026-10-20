@@ -11,7 +11,9 @@ For every subject in the study (the four sites; not the Perugini controls):
 5. whether the OFF session came first: as recorded in the metadata, and as the recordings date it (Harvard and
    Stanford by their block timestamps, Case Western by the clock where OFF and ON were run in one sitting; UCLA's
    recording dates are lost);
-6. tremor- vs bradykinesia-dominant subtype from the OFF-medication MDS-UPDRS exam, with the rule and thresholds of
+6. MoCA: from the metadata (per session; the lower score where they differ), else from a note in a Stanford
+   clinical folder name (e.g. "P14 (MCI, MoCA 24)"); patients on the config's manual `moca_rejection` list are marked;
+7. tremor- vs bradykinesia-dominant subtype from the OFF-medication MDS-UPDRS exam, with the rule and thresholds of
    notebook 0.30 (`src.utils.classification`), for Stanford and Harvard patients only (the sites with full UPDRS
    exams); never from folder names.
 
@@ -26,6 +28,7 @@ an interactive page with every subject (all trial blocks pooled per session, pri
     .venv/bin/python -m scripts.pipeline.subject_profiles [SUBJECT ...]
 """
 
+import re
 import sys
 
 import matplotlib.pyplot as plt
@@ -45,6 +48,8 @@ SITE_NAMES = {"harvard": "Harvard", "stanford": "Stanford", "case_western": "Cas
 SUBTYPED_SITES = ("harvard", "stanford")  # full MDS-UPDRS part III
 MIN_RT_MS = main_config.BEHAVIOR.min_rt * 1000
 UPDRS = main_config.MDS_UPDRS
+MOCA_LIST = set(main_config.moca_rejection)  # the manual "MoCA <= 26" exclusion list; no scores for them in the metadata
+MOCA_LIST_CUTOFF = 26
 COLOUR_STYLE = {  # stimulus colours, told apart by marker and line as well as hue
     "green": {"color": "#008300", "marker": "o", "label": "green"},
     "red": {"color": "#e34948", "marker": "^", "label": "red"},
@@ -105,6 +110,32 @@ def metadata_off_first(metadata, subject):
     if len(values) > 1:
         return None, "conflicting rows"
     return bool(values[0]), "metadata"
+
+
+def stanford_clinical_moca():
+    """MoCA scores noted in Stanford clinical_info folder or file names, e.g. "P14 (MCI, MoCA 24)" -> {"P14": 24}."""
+    scores = {}
+    for path in (catalog.path("raw_stanford_sessions") / "clinical_info").rglob("*"):
+        found = re.search(r"P0?(\d+)\b.*MoCA (\d+)", path.name)
+        if found:
+            scores[f"P{int(found.group(1))}"] = int(found.group(2))
+    return scores
+
+
+def moca(metadata, subject, group, clinical):
+    """Per-session MoCA from the metadata (lower score as the subject's), else a Stanford clinical-folder note."""
+    rows = metadata[metadata.subject_id == subject].assign(score=lambda m: pd.to_numeric(m.MoCA, errors="coerce"))
+    by_session = {str(t).lower(): s for t, s in zip(rows.treatment, rows.score) if not pd.isna(s)}
+    out = {"moca_off": by_session.get("off"), "moca_on": by_session.get("on"), "moca_excluded_by_list": subject in MOCA_LIST}
+    if by_session:
+        out.update(moca=min(by_session.values()), moca_source="metadata")
+    elif subject in clinical:
+        out.update(moca=clinical[subject], moca_source="Stanford clinical folder note")
+    else:
+        out.update(moca=None, moca_source=None)
+    if out["moca"] is None:
+        out["moca_note"] = "not recorded for controls" if group == "hc" else ("no metadata row" if rows.empty else "not in the metadata")
+    return out
 
 
 def subtype(metadata, subject, site, group):
@@ -241,7 +272,8 @@ def report_entry(subject, trials, profile):
                             "n": len(analysable(part)), "colours": colour_data(analysable(part), prior)} for prior, part in groups],
         })
     keys = ["site", "group", "subtype", "subtype_note", "tremor_bradykinesia_ratio", "off_first_metadata", "off_first_metadata_note",
-            "off_first_recorded", "off_first_recorded_note", "off_first_agree", "off_date", "on_date"]
+            "off_first_recorded", "off_first_recorded_note", "off_first_agree", "off_date", "on_date",
+            "moca", "moca_off", "moca_on", "moca_source", "moca_note", "moca_excluded_by_list"]
     return {"id": subject, **{k: plain(profile.get(k)) for k in keys}, "sessions": sessions}
 
 
@@ -343,6 +375,7 @@ def main(only=None):
     metadata = catalog.load("raw_session_metadata")
     summaries = {site: catalog.load(f"compiled_{site}_session_summary") for site in catalog.BLOCK_SITES}
     starts = pd.concat([session_order(catalog.load(f"compiled_{site}_blocks")) for site in ("harvard", "stanford")])
+    clinical_moca = stanford_clinical_moca()
 
     profiles, psych_rows, report = [], [], []
     for subject, subject_trials in trials.groupby("subject_id", sort=False):
@@ -360,6 +393,7 @@ def main(only=None):
                 start = starts.get(f"{subject}_{medication}")
                 profile[f"{medication}_date"] = f"{start:%Y-%m-%d}" if start is not None and not pd.isna(start) else None
         profile.update(subtype(metadata, subject, site, group))
+        profile.update(moca(metadata, subject, group, clinical_moca))
         rows = subject_rows(subject, subject_trials)
         psych_rows += rows
         table = pd.DataFrame(rows)
@@ -382,7 +416,7 @@ def main(only=None):
     catalog.save_table(pd.DataFrame(profiles), f"{OUT}/profiles.csv", root=ROOT, index=False)
     catalog.save_table(pd.DataFrame(psych_rows), f"{OUT}/psychometrics.csv", root=ROOT, index=False)
     if not only:
-        write_report(report, f"{OUT}/report.html", root=ROOT, min_rt_ms=MIN_RT_MS, subtype_bins={k: list(v) for k, v in dict(UPDRS.TREM_VS_BRADY).items()})
+        write_report(report, f"{OUT}/report.html", root=ROOT, moca_cutoff=MOCA_LIST_CUTOFF, min_rt_ms=MIN_RT_MS, subtype_bins={k: list(v) for k, v in dict(UPDRS.TREM_VS_BRADY).items()})
 
 
 if __name__ == "__main__":
