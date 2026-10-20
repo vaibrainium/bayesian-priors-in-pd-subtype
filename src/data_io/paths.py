@@ -7,10 +7,12 @@ The roots come from `config/dir-config.yaml`, with one rule for each:
   `catalog.save` / `writable`.
 - `OUTPUTS` (the repo's gitignored `outputs/`) holds analysis results: tables, figures, and caches
   of analysis-only fits.
+- `ARTIFACTS` (`/mnt/pd-data/artifacts/`) holds what people look at or share: the subject report and
+  figures, and the compile notebooks' check figures.
 - `DISSEMINATION` holds the slide decks that are tracked in git.
 
 Every root can be redirected with an environment variable (`PD_RAW_DIR`, `PD_COMPILED_DIR`,
-`PD_PROCESSED_DIR`, `PD_OUTPUTS_DIR`). That is how a pipeline change is checked against a scratch
+`PD_PROCESSED_DIR`, `PD_OUTPUTS_DIR`, `PD_ARTIFACTS_DIR`). That is how a pipeline change is checked against a scratch
 copy before it is allowed near the shared data.
 """
 
@@ -30,10 +32,11 @@ RAW = _root("PD_RAW_DIR", dir_config.data.raw)
 COMPILED = _root("PD_COMPILED_DIR", dir_config.data.compiled)
 PROCESSED = _root("PD_PROCESSED_DIR", dir_config.data.processed)
 OUTPUTS = _root("PD_OUTPUTS_DIR", REPO / "outputs")
+ARTIFACTS = _root("PD_ARTIFACTS_DIR", dir_config.data.artifacts)
 DISSEMINATION = REPO / "dissemination"
 
-ROOTS = {"raw": RAW, "compiled": COMPILED, "processed": PROCESSED, "outputs": OUTPUTS, "dissemination": DISSEMINATION}
-WRITABLE_ROOTS = ("compiled", "processed", "outputs", "dissemination")
+ROOTS = {"raw": RAW, "compiled": COMPILED, "processed": PROCESSED, "outputs": OUTPUTS, "artifacts": ARTIFACTS, "dissemination": DISSEMINATION}
+WRITABLE_ROOTS = ("compiled", "processed", "outputs", "artifacts", "dissemination")
 
 
 def _is_under(path, root):

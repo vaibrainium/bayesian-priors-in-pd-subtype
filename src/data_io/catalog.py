@@ -81,6 +81,7 @@ DATASETS = {
     "compiled_ucla_blocks": Dataset("compiled", "ucla/blocks.csv", "0.05", read_kwargs={**_CSV_EXACT, "parse_dates": ["header_time"]}, write_kwargs=_CSV_NO_INDEX),
     "compiled_ucla_session_summary": Dataset("compiled", "ucla/session_summary.csv", "0.05", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX),
     "compiled_readme": Dataset("compiled", "README.md", "scripts/pipeline/write_compiled_readme.py"),
+    "artifacts_readme": Dataset("artifacts", "README.md", "scripts/pipeline/write_compiled_readme.py"),
     # Perugini et al. (2016) healthy controls, kept apart from the study data (not read by load_block_sessions)
     "compiled_perugini_session": Dataset("compiled", "ucla/perugini/sessions/{filename}", "0.05"),
     "compiled_perugini_session_summary": Dataset("compiled", "ucla/perugini/session_summary.csv", "0.05", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX),
@@ -403,9 +404,9 @@ def load_block_sessions(sites=BLOCK_SITES, session_ids=None):
 # --------------------------------------------------------------------------------------------- #
 
 
-def save_table(df, filename, **kwargs):
-    """Write a results table to `outputs/`. `kwargs` go to `DataFrame.to_csv`."""
-    write(df, ROOTS["outputs"] / filename, **kwargs)
+def save_table(df, filename, root="outputs", **kwargs):
+    """Write a results table to `outputs/` (or another writable root, e.g. "artifacts"). `kwargs` go to `DataFrame.to_csv`."""
+    write(df, ROOTS[root] / filename, **kwargs)
     print(f"saved {filename}")
 
 

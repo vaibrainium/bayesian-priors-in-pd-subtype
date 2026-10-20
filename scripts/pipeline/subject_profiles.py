@@ -19,7 +19,7 @@ Trials are the valid ones with a reaction time of at least `BEHAVIOR.min_rt` sec
 ms). Psychometric functions plot P(choose right) against signed coherence (positive = target right) and are fitted
 with the 4-parameter logistic of `src.utils.pmf_utils`.
 
-Writes to outputs/subject_profiles/: profiles.csv (one row per subject), psychometrics.csv (one row per subject x
+Writes to artifacts/subject_profiles/ (/mnt/pd-data/artifacts): profiles.csv (one row per subject), psychometrics.csv (one row per subject x
 session x condition x colour, with the fitted parameters), a figure per subject (<subject>.png / .pdf) and report.html,
 an interactive page with every subject (all trial blocks pooled per session, prior conditions on expanding).
 
@@ -39,7 +39,8 @@ from src.utils.pmf_utils import fit_psychometric_function
 
 from scripts.pipeline.subject_report import write_report
 
-OUT = "subject_profiles"
+OUT = "subject_profiles"  # under the artifacts root
+ROOT = "artifacts"
 SITE_NAMES = {"harvard": "Harvard", "stanford": "Stanford", "case_western": "Case Western", "ucla": "UCLA"}
 SUBTYPED_SITES = ("harvard", "stanford")  # full MDS-UPDRS part III
 MIN_RT_MS = main_config.BEHAVIOR.min_rt * 1000
@@ -375,13 +376,13 @@ def main(only=None):
 
         report.append(report_entry(subject, subject_trials, profile))
         fig = subject_figure(subject, subject_trials, profile)
-        catalog.save_figure(fig, f"{OUT}/{subject}")
+        catalog.save_figure(fig, f"{OUT}/{subject}", root=ROOT)
         plt.close(fig)
 
-    catalog.save_table(pd.DataFrame(profiles), f"{OUT}/profiles.csv", index=False)
-    catalog.save_table(pd.DataFrame(psych_rows), f"{OUT}/psychometrics.csv", index=False)
+    catalog.save_table(pd.DataFrame(profiles), f"{OUT}/profiles.csv", root=ROOT, index=False)
+    catalog.save_table(pd.DataFrame(psych_rows), f"{OUT}/psychometrics.csv", root=ROOT, index=False)
     if not only:
-        write_report(report, f"{OUT}/report.html", min_rt_ms=MIN_RT_MS, subtype_bins={k: list(v) for k, v in dict(UPDRS.TREM_VS_BRADY).items()})
+        write_report(report, f"{OUT}/report.html", root=ROOT, min_rt_ms=MIN_RT_MS, subtype_bins={k: list(v) for k, v in dict(UPDRS.TREM_VS_BRADY).items()})
 
 
 if __name__ == "__main__":

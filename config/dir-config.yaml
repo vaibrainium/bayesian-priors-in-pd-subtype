@@ -3,3 +3,4 @@ data:
   compiled: "/mnt/pd-data/compiled"
   processed: "/mnt/pd-data/processed"
   final: "/mnt/pd-data/final"
+  artifacts: "/mnt/pd-data/artifacts"  # reports, per-subject figures and check figures to look at or share
