@@ -87,14 +87,14 @@ def recorded_off_first(subject, site, starts, summaries):
     off, on = f"{subject}_off", f"{subject}_on"
     if site in ("harvard", "stanford"):
         if off in starts and on in starts:
-            return bool(starts[off] < starts[on]), f"session dates ({starts[off]:%Y-%m-%d} OFF, {starts[on]:%Y-%m-%d} ON)"
-        return None, "one session missing"
+            return bool(starts[off] < starts[on]), f"session dates (OFF {starts[off]:%Y-%m-%d}, ON {starts[on]:%Y-%m-%d})"
+        return None, "one session has no date"
     if site == "case_western":
         row = summaries["case_western"].set_index("session_id").loc[off]
         if row.same_sitting:
-            return row.order_by_clock.startswith("OFF"), f"clock, one sitting ({row.awake_gap_min:.0f} min apart)"
-        return None, "clock, separate sittings: order unknown"
-    return None, "recording dates lost (batch re-saved files)"
+            return row.order_by_clock.startswith("OFF"), f"one sitting, {row.awake_gap_min:.0f} min apart on the session clock"
+        return None, "separate sittings, no dates"
+    return None, "recording dates lost"
 
 
 def metadata_off_first(metadata, subject):
@@ -240,7 +240,7 @@ def report_entry(subject, trials, profile):
                             "n": len(analysable(part)), "colours": colour_data(analysable(part), prior)} for prior, part in groups],
         })
     keys = ["site", "group", "subtype", "subtype_note", "tremor_bradykinesia_ratio", "off_first_metadata", "off_first_metadata_note",
-            "off_first_recorded", "off_first_recorded_note", "off_first_agree"]
+            "off_first_recorded", "off_first_recorded_note", "off_first_agree", "off_date", "on_date"]
     return {"id": subject, **{k: plain(profile.get(k)) for k in keys}, "sessions": sessions}
 
 
@@ -355,6 +355,9 @@ def main(only=None):
             profile["off_first_recorded"], profile["off_first_recorded_note"] = recorded_off_first(subject, site, starts, summaries)
             known = [v for v in (profile["off_first_metadata"], profile["off_first_recorded"]) if v is not None]
             profile["off_first_agree"] = None if len(known) < 2 else known[0] == known[1]
+            for medication in ("off", "on"):
+                start = starts.get(f"{subject}_{medication}")
+                profile[f"{medication}_date"] = f"{start:%Y-%m-%d}" if start is not None and not pd.isna(start) else None
         profile.update(subtype(metadata, subject, site, group))
         rows = subject_rows(subject, subject_trials)
         psych_rows += rows
@@ -378,7 +381,7 @@ def main(only=None):
     catalog.save_table(pd.DataFrame(profiles), f"{OUT}/profiles.csv", index=False)
     catalog.save_table(pd.DataFrame(psych_rows), f"{OUT}/psychometrics.csv", index=False)
     if not only:
-        write_report(report, f"{OUT}/report.html", min_rt_ms=MIN_RT_MS)
+        write_report(report, f"{OUT}/report.html", min_rt_ms=MIN_RT_MS, subtype_bins={k: list(v) for k, v in dict(UPDRS.TREM_VS_BRADY).items()})
 
 
 if __name__ == "__main__":

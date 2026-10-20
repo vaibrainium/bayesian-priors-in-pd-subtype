@@ -21,6 +21,7 @@
   --accent-soft: #dcebf4;
   --warn: #8a5300;
   --warn-soft: #f8ecd8;
+  --ok: #2e7a57;
   --green: #008300;
   --red: #e34948;
   --font-ui: "Public Sans", "Segoe UI", system-ui, sans-serif;
@@ -29,13 +30,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0e1418; --surface: #162027; --ink: #e4ecf0; --muted: #9eb0bb; --faint: #6f818c; --rule: #26333c;
-    --chip: #1e2a32; --accent: #79b7de; --accent-soft: #1b3241; --warn: #e3a64f; --warn-soft: #33270f;
+    --chip: #1e2a32; --accent: #79b7de; --accent-soft: #1b3241; --warn: #e3a64f; --warn-soft: #33270f; --ok: #6cc39a;
     --green: #2a9a2a; --red: #e66767; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0e1418; --surface: #162027; --ink: #e4ecf0; --muted: #9eb0bb; --faint: #6f818c; --rule: #26333c;
-  --chip: #1e2a32; --accent: #79b7de; --accent-soft: #1b3241; --warn: #e3a64f; --warn-soft: #33270f;
+  --chip: #1e2a32; --accent: #79b7de; --accent-soft: #1b3241; --warn: #e3a64f; --warn-soft: #33270f; --ok: #6cc39a;
   --green: #2a9a2a; --red: #e66767; color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -76,8 +77,27 @@ details.method li { margin: 3px 0; }
 .chip { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: var(--chip); color: var(--ink); white-space: nowrap; }
 .chip.subtype { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .chip.flag { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
-.facts { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 0.82rem; color: var(--muted); }
-.facts b { color: var(--ink); font-weight: 600; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 10px; max-width: 760px; }
+.fact { background: var(--bg); border: 1px solid var(--rule); border-radius: 8px; padding: 9px 12px 10px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.fact .k { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.fact .v { font-size: 1.02rem; font-weight: 700; }
+.fact .v.na { color: var(--faint); }
+.fact .why { font-size: 0.76rem; color: var(--muted); }
+.fact svg.scale { width: 100%; max-width: 260px; height: auto; display: block; }
+svg .seg { fill: var(--chip); }
+svg .seg.on { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; }
+svg .marker { stroke: var(--ink); stroke-width: 1.5; }
+svg .marker-dot { fill: var(--ink); stroke: var(--surface); stroke-width: 1.5; }
+.timeline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.step { display: inline-flex; gap: 6px; align-items: baseline; padding: 3px 9px; border-radius: 6px; background: var(--chip); font-size: 0.82rem; }
+.step.first { background: var(--accent-soft); color: var(--accent); }
+.step .d { font-family: var(--font-data); font-size: 0.74rem; color: var(--muted); }
+.arrow { color: var(--faint); }
+.agree { display: flex; gap: 6px; align-items: center; font-size: 0.78rem; }
+.agree .badge { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 0.66rem; font-weight: 700; color: var(--surface); flex: none; }
+.agree.ok { color: var(--ok); } .agree.ok .badge { background: var(--ok); }
+.agree.bad { color: var(--warn); } .agree.bad .badge { background: var(--warn); }
+.agree.na { color: var(--muted); } .agree.na .badge { background: var(--faint); }
 
 .session { display: grid; gap: 8px; border-top: 1px solid var(--rule); padding-top: 10px; }
 .session h3 { margin: 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
@@ -266,22 +286,99 @@ svg .bar-lab { fill: var(--ink); font: 10px var(--font-data); }
     return box;
   }
 
-  const yesNo = v => v === null || v === undefined ? "unknown" : (v ? "yes" : "no");
+  const SUBTYPE_NAMES = { tremor: "Tremor-dominant", bradykinetic: "Bradykinesia-dominant", intermediate: "Intermediate" };
+  const MED = m => m.toUpperCase();
+  const fmtDate = d => new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+  function fact(label) {
+    const box = html("div", "fact");
+    box.appendChild(html("div", "k", label));
+    return box;
+  }
+
+  function ratioScale(ratio) {
+    // bins from the config, e.g. bradykinetic [0, 0.8], intermediate [0.8, 1], tremor [1, 10]; drawn on 0-2
+    const w = 250, h = 40, l = 6, r = 6, top = 14, bar = 9, max = 2;
+    const sx = v => l + Math.min(v, max) / max * (w - l - r);
+    const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, class: "scale", role: "img", "aria-label": `tremor to bradykinesia ratio ${ratio.toFixed(2)}` });
+    const bins = Object.entries(data.subtype_bins);
+    bins.forEach(([name, [lo, hi]]) => {
+      const inBin = ratio >= lo && ratio <= hi;
+      el("rect", { x: sx(lo), y: top, width: Math.max(sx(Math.min(hi, max)) - sx(lo) - 1.5, 1), height: bar, rx: 2, class: inBin ? "seg on" : "seg" }, svg);
+      const mid = (sx(lo) + sx(Math.min(hi, max))) / 2;
+      el("text", { class: "tick", x: mid, y: h - 2, "text-anchor": "middle" }, svg, name === "intermediate" ? "int." : name === "bradykinetic" ? "bradykinesia" : name);
+      if (lo > 0) el("text", { class: "tick", x: sx(lo), y: top - 4, "text-anchor": "middle" }, svg, lo.toFixed(1));
+    });
+    const mx = sx(ratio);
+    el("line", { x1: mx, x2: mx, y1: top - 2, y2: top + bar + 2, class: "marker" }, svg);
+    el("circle", { cx: mx, cy: top + bar / 2, r: 4, class: "marker-dot" }, svg);
+    return svg;
+  }
+
+  function subtypeFact(sub) {
+    const box = fact("Motor subtype");
+    if (!sub.subtype) {
+      box.appendChild(html("div", "v na", "Not classified"));
+      box.appendChild(html("div", "why", sub.subtype_note));
+      return box;
+    }
+    box.appendChild(html("div", "v", SUBTYPE_NAMES[sub.subtype] || sub.subtype));
+    box.appendChild(ratioScale(sub.tremor_bradykinesia_ratio));
+    box.appendChild(html("div", "why", `Tremor ÷ bradykinesia item score = ${sub.tremor_bradykinesia_ratio.toFixed(2)}, from the OFF-medication UPDRS exam`));
+    return box;
+  }
+
+  function orderFact(sub) {
+    const box = fact("Session order");
+    const rec = sub.off_first_recorded, meta = sub.off_first_metadata;
+    const offFirst = rec !== null ? rec : meta;
+    if (offFirst === null) {
+      box.appendChild(html("div", "v na", "Unknown"));
+      box.appendChild(html("div", "why", `Recordings: ${sub.off_first_recorded_note}. Metadata: ${sub.off_first_metadata_note}.`));
+      return box;
+    }
+    const order = offFirst ? ["off", "on"] : ["on", "off"];
+    box.appendChild(html("div", "v", `${MED(order[0])} first`));
+    const line = html("div", "timeline");
+    order.forEach((m, i) => {
+      if (i) line.appendChild(html("span", "arrow", "→"));
+      const step = html("span", "step" + (i === 0 ? " first" : ""));
+      step.appendChild(html("b", "", MED(m)));
+      const d = sub[`${m}_date`];
+      if (d) step.appendChild(html("span", "d", fmtDate(d)));
+      line.appendChild(step);
+    });
+    box.appendChild(line);
+    let cls, text;
+    if (rec !== null && meta !== null) {
+      cls = rec === meta ? "ok" : "bad";
+      text = rec === meta ? "Recordings and metadata agree" : `Recordings: ${rec ? "OFF" : "ON"} first; metadata: ${meta ? "OFF" : "ON"} first`;
+    } else if (rec !== null) {
+      cls = "na"; text = `From the recordings only (metadata: ${sub.off_first_metadata_note})`;
+    } else {
+      cls = "na"; text = `From the metadata only (recordings: ${sub.off_first_recorded_note})`;
+    }
+    const status = html("div", "agree " + cls);
+    status.appendChild(html("span", "badge", cls === "ok" ? "✓" : cls === "bad" ? "!" : "i"));
+    status.appendChild(document.createTextNode(text));
+    box.appendChild(status);
+    if (rec !== null && !(sub.off_date && sub.on_date)) box.appendChild(html("div", "why", `Recordings: ${sub.off_first_recorded_note}`));
+    return box;
+  }
+
   function card(sub) {
     const art = html("article", "subject"); art.id = sub.id;
     const head = html("header");
     head.appendChild(html("span", "sid", sub.id));
     head.appendChild(html("span", "chip", sub.site));
     head.appendChild(html("span", "chip", sub.group === "pd" ? "patient" : "control"));
-    if (sub.group === "pd") head.appendChild(html("span", "chip subtype", sub.subtype ? `${sub.subtype} dominant` : "subtype not classified"));
+    if (sub.group === "pd") head.appendChild(html("span", "chip subtype", sub.subtype ? (SUBTYPE_NAMES[sub.subtype] || sub.subtype) : "subtype not classified"));
     if (sub.sessions.some(s => s.conditions.length > 1)) head.appendChild(html("span", "chip flag", "mixed block priors"));
     art.appendChild(head);
     if (sub.group === "pd") {
       const facts = html("div", "facts");
-      const f = (k, v) => { const s = html("span"); s.appendChild(html("b", "", k + " ")); s.appendChild(document.createTextNode(v)); facts.appendChild(s); };
-      f("Subtype", sub.subtype ? `${sub.subtype} (tremor/bradykinesia ${sub.tremor_bradykinesia_ratio.toFixed(2)}, OFF UPDRS)` : sub.subtype_note);
-      f("OFF first, metadata", yesNo(sub.off_first_metadata) + (sub.off_first_metadata === null ? ` (${sub.off_first_metadata_note})` : ""));
-      f("OFF first, recordings", yesNo(sub.off_first_recorded) + ` (${sub.off_first_recorded_note})`);
+      facts.appendChild(subtypeFact(sub));
+      facts.appendChild(orderFact(sub));
       art.appendChild(facts);
     }
     for (const s of sub.sessions) art.appendChild(sessionBlock(s));
@@ -302,8 +399,8 @@ svg .bar-lab { fill: var(--ink); font: 10px var(--font-data); }
     "Priors: gr = green targets 75% right, rl = red targets 75% left, and so on; gr+rl means both colours were biased. The prior colour is drawn solid and the 50:50 colour dashed. A block's prior is read from its own trials, never from file names.",
     "All trial blocks: every trial block of the session pooled. Where blocks implied different priors, Prior conditions shows each prior on its own, with the blocks it covers.",
     "Practice: accuracy per colour when practice was at 100% coherence only; a psychometric function when it included lower coherences.",
-    "Subtype: tremor/bradykinesia ratio of the OFF-medication MDS-UPDRS exam (rule of notebook 0.30), for Stanford and Harvard patients only.",
-    "OFF first: from the metadata, and from the recordings where they date the sessions (Harvard and Stanford session dates; Case Western clock when OFF and ON ran in one sitting).",
+    "Motor subtype: mean tremor item score divided by mean bradykinesia item score on the OFF-medication MDS-UPDRS exam, binned at 0.8 and 1.0 (rule of notebook 0.30); Stanford and Harvard patients only. The scale marks the patient's ratio.",
+    "Session order: from the recordings where they date the sessions (Harvard and Stanford session dates; Case Western clock when OFF and ON ran in one sitting), otherwise from the metadata, with a note on whether the two agree.",
   ];
   const ul = document.getElementById("method");
   for (const m of method) ul.appendChild(html("li", "", m));
