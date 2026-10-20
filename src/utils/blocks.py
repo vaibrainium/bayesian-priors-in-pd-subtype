@@ -2,8 +2,11 @@
 
 Several sites ran each session as one or more practice blocks followed by several trial blocks, one MAT file per
 block named `YYMMDD_HHMMSS.mat`. Each site notebook lists its files in its own folder layout as a table with
-`LISTING_COLUMNS` (`file` relative to the site folder; `phase` "practice", "trial" or "unexpected"); everything after
-that is shared:
+`LISTING_COLUMNS`: `phase` ("practice", "trial" or "unexpected"), `path` (relative to the site folder, used only to
+read the file) and `file` (`<session_id>/<path inside the session folder>`, the block's name in everything saved).
+Compiled outputs identify a session only by subject and medication state; labels in raw folder names (subtype,
+intended prior) are unreliable and are not carried over, so `path` is dropped before saving (`INTERNAL_COLUMNS`).
+Everything after the listing is shared:
 
     blocks, decoded = read_blocks(listing, root)   # timestamps, clocks and contents of every file
     check_timing(blocks); mark_use(blocks)         # which files were recorded in their session
@@ -37,7 +40,8 @@ from config import main_config
 from src.data_io import catalog
 from src.utils.sessions import SESSION_COLUMNS, decode_events, prior_design_error
 
-LISTING_COLUMNS = ["session_id", "subject_id", "group", "medication", "phase", "file"]
+LISTING_COLUMNS = ["session_id", "subject_id", "group", "medication", "phase", "file", "path"]
+INTERNAL_COLUMNS = ["path", "content_md5"]  # read-time only; not saved
 BLOCK_COLUMNS = ["session_id", "phase", "block", "block_file", "trial_in_block", "block_prior"]
 
 CLOCK_TOLERANCE_S = 60  # a block's header offset may differ from its session's by this much
@@ -67,7 +71,7 @@ def read_blocks(listing, root):
     """Each listed file's timestamps, clock range and content hash, and the decoded trials of every 10-column block."""
     rows, decoded = [], {}
     for entry in listing.to_dict("records"):
-        path = root / entry["file"]
+        path = root / entry["path"]
         mat = scipy.io.loadmat(path)
         event, time = mat["event"], mat["time"]
         if event.shape[1] == 10:
@@ -264,8 +268,10 @@ def _session_checks(session):
 def session_summary(blocks):
     """One row per session, in listing order: block counts, prior, the order checks, `issues` and `notes`."""
     first = blocks.drop_duplicates("session_id").set_index("session_id")[["subject_id", "group", "medication"]]
-    checks = pd.DataFrame({session_id: _session_checks(session) for session_id, session in blocks.groupby("session_id", sort=False)}).T
-    return first.join(checks.infer_objects()).reset_index()
+    rows = {session_id: _session_checks(session).to_dict() for session_id, session in blocks.groupby("session_id", sort=False)}
+    columns = max(rows.values(), key=len).keys()  # a session with trial blocks has every column, in order
+    checks = pd.DataFrame.from_dict(rows, orient="index").reindex(columns=columns)
+    return first.join(checks).reset_index()
 
 
 def compile_sessions(blocks, decoded, summary, dataset):
