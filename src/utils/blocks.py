@@ -1,0 +1,374 @@
+"""Checking and compiling sessions recorded as separate block files (compile stage: 0.02 Harvard, 0.03 Stanford).
+
+Several sites ran each session as one or more practice blocks followed by several trial blocks, one MAT file per
+block named `YYMMDD_HHMMSS.mat`. Each site notebook lists its files in its own folder layout as a table with
+`LISTING_COLUMNS` (`file` relative to the site folder; `phase` "practice", "trial" or "unexpected"); everything after
+that is shared:
+
+    blocks, decoded = read_blocks(listing, root)   # timestamps, clocks and contents of every file
+    check_timing(blocks); mark_use(blocks)         # which files were recorded in their session
+    runs = add_provenance(blocks)                  # where the left-out files were recorded
+    add_design(blocks, decoded)                    # colour splits and the prior each block implies
+    summary = session_summary(blocks)              # per-session checks, `issues` and `notes`
+    compile_sessions(blocks, decoded, summary, dataset)
+
+Three clocks date each block:
+
+- **filename**: when the task program started the block (the first trial can follow some minutes later);
+- **MAT header** (`Created on:`): when MATLAB saved it, about 15 s after the last trial;
+- **`time` matrix**: event times in ms on the PC's monotonic clock, which runs on through a session.
+
+The header offset, header time minus the last clock value, is therefore constant across a session's blocks, with two
+exceptions on the same day: it steps up when the PC sleeps between blocks (the monotonic clock pauses), and steps
+down when the wall clock is corrected (a time sync). A block within `CLOCK_TOLERANCE_S` of its session's offset is
+"on clock", one recorded on the session's day within `MAX_CLOCK_SHIFT_S` has a "clock shift" and is kept, and
+anything else is "off clock": it was not recorded in that session (a renamed copy, or a file from another day).
+"""
+
+import hashlib
+import re
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.io
+
+from config import main_config
+from src.data_io import catalog
+from src.utils.sessions import SESSION_COLUMNS, decode_events, prior_design_error
+
+LISTING_COLUMNS = ["session_id", "subject_id", "group", "medication", "phase", "file"]
+BLOCK_COLUMNS = ["session_id", "phase", "block", "block_file", "trial_in_block", "block_prior"]
+
+CLOCK_TOLERANCE_S = 60  # a block's header offset may differ from its session's by this much
+MAX_CLOCK_SHIFT_S = 3 * 3600  # larger same-day shifts than this are not taken for a sleep or a clock correction
+RECORDING_SLACK_S = 60  # header - filename may fall this far short of the recorded duration (a clock correction mid-block)
+MIN_TRIALS_PER_BLOCK = 10  # fewer rows (or an event matrix without 10 columns) is an aborted start
+FULL_BLOCK = 150  # trial blocks with fewer colour-shown trials than this are partial (a full block shows 160)
+MIN_SESSION_TRIALS = 600  # the intended session length, in colour-shown trials
+BIAS_PCT = 60  # a colour whose targets go more than this % to one side carries a prior
+DESIGN_TOLERANCE = main_config.BEHAVIOR.prior_design_tolerance
+EPOCH = pd.Timestamp("2000-01-01")  # any fixed origin; only differences of header offsets matter
+SINGLE_PRIORS = ("gr", "gl", "rr", "rl")
+
+
+def header_time(mat):
+    """The `Created on:` time in a MAT-file header (MATLAB pads single-digit days with a space)."""
+    found = re.search(r"Created on: (.+?\d{4})", mat["__header__"].decode("latin1"))
+    return pd.to_datetime(" ".join(found.group(1).split()), format="%a %b %d %H:%M:%S %Y") if found else pd.NaT
+
+
+# --------------------------------------------------------------------------------------------- #
+# Reading and timing
+# --------------------------------------------------------------------------------------------- #
+
+
+def read_blocks(listing, root):
+    """Each listed file's timestamps, clock range and content hash, and the decoded trials of every 10-column block."""
+    rows, decoded = [], {}
+    for entry in listing.to_dict("records"):
+        path = root / entry["file"]
+        mat = scipy.io.loadmat(path)
+        event, time = mat["event"], mat["time"]
+        if event.shape[1] == 10:
+            decoded[entry["file"]] = decode_events(event, time)
+        rows.append({
+            **entry,
+            "filename_time": pd.to_datetime(path.stem, format="%y%m%d_%H%M%S", errors="coerce"),
+            "header_time": header_time(mat),
+            "n_rows": event.shape[0],
+            "n_cols": event.shape[1],
+            "clock_start_s": time[0, 0] / 1000,
+            "clock_end_s": time[time > 0].max() / 1000,
+            "content_md5": hashlib.md5(event.tobytes() + time.tobytes()).hexdigest(),
+        })
+    return pd.DataFrame(rows), decoded
+
+
+def _complete(blocks):
+    return (blocks.n_cols == 10) & (blocks.n_rows >= MIN_TRIALS_PER_BLOCK)
+
+
+def check_timing(blocks):
+    """Add the timing columns and `clock_status` (on clock / clock shift / off clock / no trial blocks)."""
+    blocks["duration_s"] = blocks.clock_end_s - blocks.clock_start_s
+    blocks["header_minus_filename_s"] = (blocks.header_time - blocks.filename_time).dt.total_seconds()
+    blocks["wait_s"] = blocks.header_minus_filename_s - blocks.duration_s  # program start -> first trial, plus the save
+    blocks["header_offset_s"] = (blocks.header_time - EPOCH).dt.total_seconds() - blocks.clock_end_s
+
+    trial = blocks[_complete(blocks) & (blocks.phase == "trial")]
+    blocks["session_date"] = blocks.session_id.map(trial.groupby("session_id").filename_time.agg(lambda t: t.dt.date.mode()[0]))
+    blocks["clock_drift_s"] = blocks.header_offset_s - blocks.session_id.map(trial.groupby("session_id").header_offset_s.median())
+    blocks["header_same_day"] = blocks.header_time.dt.date == blocks.filename_time.dt.date
+    blocks["saved_after_recording"] = blocks.wait_s >= -RECORDING_SLACK_S
+
+    drift = blocks.clock_drift_s.abs()
+    on_day = blocks.header_time.dt.date == blocks.session_date
+    blocks["clock_status"] = np.select(
+        [blocks.session_date.isna(), drift <= CLOCK_TOLERANCE_S, on_day & (drift <= MAX_CLOCK_SHIFT_S)],
+        ["no trial blocks", "on clock", "clock shift"], default="off clock")
+    same_content = blocks.groupby("content_md5").file.transform(lambda f: [", ".join(sorted(set(f) - {x})) for x in f])
+    blocks["duplicate_of"] = same_content.replace("", None)
+    return blocks
+
+
+def excluded_reason(block):
+    """Why a file is left out (the first reason that applies), or None."""
+    if block.phase == "unexpected":
+        return "outside the practice and trial locations"
+    if block.n_cols != 10 or block.n_rows < MIN_TRIALS_PER_BLOCK:
+        return f"aborted ({block.n_rows} x {block.n_cols} event matrix)"
+    if block.clock_status == "no trial blocks":
+        return "session has no trial blocks"
+    if block.clock_status == "off clock":
+        return f"not on this session's clock (saved {block.header_time:%Y-%m-%d %H:%M})"
+    if not block.saved_after_recording:
+        return f"saved {-block.wait_s:.0f} s before its trials ended"
+    return None
+
+
+def mark_use(blocks):
+    """Add `excluded_reason` and `use`; a later file repeating a used file of the same session is left out too."""
+    blocks["excluded_reason"] = blocks.apply(excluded_reason, axis=1)
+    kept = blocks.excluded_reason.isna()
+    repeat = kept & blocks[kept].sort_values("filename_time").duplicated(["session_id", "content_md5"]).reindex(blocks.index, fill_value=False)
+    blocks.loc[repeat, "excluded_reason"] = "repeats an earlier block of this session"
+    blocks["use"] = blocks.excluded_reason.isna()
+    return blocks
+
+
+def add_provenance(blocks):
+    """Where each left-out file was recorded; returns one row per recording run.
+
+    `recorded_with` names the sessions run the same day whose used blocks share the file's clock (the clock survives
+    overnight when the PC is not restarted, so other days are not evidence). Left-out files sharing a day and an
+    offset form one `recording_run`. `copy_of_used` is the used file with identical contents, if any.
+    """
+    used = blocks[blocks.use]
+    left_out = blocks[~blocks.use].sort_values("header_time")
+    if left_out.empty:
+        return pd.DataFrame()
+
+    def recorded_with(block):
+        same_day = used[used.header_time.dt.date == block.header_time.date()]
+        same_clock = same_day[(same_day.header_offset_s - block.header_offset_s).abs() <= CLOCK_TOLERANCE_S]
+        return ", ".join(same_clock.session_id.unique()) or "no session that day"
+
+    blocks.loc[left_out.index, "recorded_with"] = left_out.apply(recorded_with, axis=1)
+    new_run = (left_out.header_time.dt.date != left_out.header_time.dt.date.shift()) | (left_out.header_offset_s.diff().abs() > CLOCK_TOLERANCE_S)
+    blocks.loc[left_out.index, "recording_run"] = new_run.cumsum()
+    original = used.set_index("content_md5").file
+    blocks.loc[left_out.index, "copy_of_used"] = left_out.content_md5.map(original[~original.index.duplicated()])
+    return blocks[~blocks.use].groupby("recording_run").agg(
+        saved_from=("header_time", "min"), saved_to=("header_time", "max"), n_files=("file", "size"),
+        recorded_with=("recorded_with", "first"), filed_under=("session_id", lambda s: ", ".join(s.unique())),
+        reasons=("excluded_reason", lambda r: ", ".join(r.str.split(" \\(").str[0].unique())),
+        copies_of=("copy_of_used", lambda d: ", ".join(d.dropna().unique())))
+
+
+# --------------------------------------------------------------------------------------------- #
+# Design
+# --------------------------------------------------------------------------------------------- #
+
+
+def implied_prior(green_right_pct, red_right_pct):
+    """`gr`, `rl`, ... for each colour sending more than `BIAS_PCT` % of targets to one side, joined; `none` if neither."""
+    parts = [f"{colour}{'r' if pct > 50 else 'l'}" for colour, pct in (("g", green_right_pct), ("r", red_right_pct)) if abs(pct - 50) > BIAS_PCT - 50]
+    return "+".join(parts) or "none"
+
+
+def add_design(blocks, decoded):
+    """Per 10-column block: trials shown per colour, % right, coherences, implied prior, design error, partial."""
+    rows = {}
+    for file, trials in decoded.items():
+        shown = trials.dropna(subset=["color", "target"])
+        row = {"n_shown": len(shown), "coherences": ",".join(str(int(c)) for c in sorted(trials.coherence.dropna().unique()))}
+        for colour in ("green", "red"):
+            targets = shown.loc[shown.color == colour, "target"]
+            row[f"n_{colour}"] = len(targets)
+            row[f"{colour}_right_pct"] = 100 * (targets == "right").mean() if len(targets) else np.nan
+        row["block_prior"] = implied_prior(row["green_right_pct"], row["red_right_pct"])
+        rows[file] = row
+    design = pd.DataFrame.from_dict(rows, orient="index")
+    design["design_error"] = prior_design_error(pd.concat([d.assign(session_filename=f) for f, d in decoded.items()]))["prior_design_error"]
+    for column in design:
+        blocks[column] = blocks.file.map(design[column])
+    blocks["partial"] = (blocks.phase == "trial") & (blocks.n_shown < FULL_BLOCK)
+    return blocks
+
+
+# --------------------------------------------------------------------------------------------- #
+# Sessions
+# --------------------------------------------------------------------------------------------- #
+
+
+def _session_checks(session):
+    used = session[session.use]
+    practice = used[used.phase == "practice"].sort_values("filename_time")
+    trial = used[used.phase == "trial"].sort_values("filename_time")
+    if trial.empty:
+        return pd.Series({"n_practice_blocks": len(practice), "n_trial_blocks": 0, "n_files_left_out": int((~session.use).sum()),
+                          "issues": "no trial blocks", "notes": ""})
+    full = trial[~trial.partial]
+    priors = full.block_prior.value_counts()
+    timeline = used.sort_values("filename_time")
+    gaps = (trial.filename_time.iloc[1:].to_numpy() - trial.header_time.iloc[:-1].to_numpy()) / pd.Timedelta(seconds=1)
+    shifted = used[used.clock_status == "clock shift"]
+    checks = {
+        "date": ", ".join(sorted({f"{d:%Y-%m-%d}" for d in used.filename_time})),
+        "n_practice_blocks": len(practice),
+        "n_trial_blocks": len(trial),
+        "n_partial_blocks": int(trial.partial.sum()),
+        "n_files_left_out": int((~session.use).sum()),
+        "n_trials": int(trial.n_rows.sum()),
+        "n_shown": int(trial.n_shown.sum()),
+        "block_priors": " | ".join(trial.block_prior + np.where(trial.partial, "*", "")),
+        "session_prior": priors.index[0] if len(priors) else None,
+        "prior_consistent": trial.block_prior.nunique() == 1,
+        "design_ok": bool((full.design_error <= DESIGN_TOLERANCE).all()),
+        "max_design_error": full.design_error.max(),
+        "practice_before_trial": bool(len(practice) and practice.header_time.max() <= trial.filename_time.min()
+                                      and practice.clock_end_s.max() <= trial.clock_start_s.min()),
+        "practice_to_trial_min": (trial.filename_time.min() - practice.header_time.max()).total_seconds() / 60 if len(practice) else np.nan,
+        "block_order_consistent": timeline.sort_values("clock_start_s").file.tolist() == timeline.file.tolist() == timeline.sort_values("header_time").file.tolist(),
+        "trial_blocks_overlap": bool((gaps < -RECORDING_SLACK_S).any()),
+        "one_day": used.filename_time.dt.date.nunique() == 1,
+        "reaches_600": int(trial.n_shown.sum()) >= MIN_SESSION_TRIALS,
+        "max_clock_shift_min": shifted.clock_drift_s.abs().max() / 60 if len(shifted) else 0.0,
+    }
+    issues = []
+    if not checks["prior_consistent"]:
+        issues.append(f"block priors differ ({checks['block_priors']})")
+    if not checks["design_ok"]:
+        issues.append(f"design off 75:25 / 50:50 (error {checks['max_design_error']:.2f})")
+    if not len(practice):
+        issues.append("no practice recorded in this session")
+    elif not checks["practice_before_trial"]:
+        issues.append("practice not before trial")
+    if not checks["block_order_consistent"] or checks["trial_blocks_overlap"]:
+        issues.append("block order or overlap")
+    if not checks["one_day"]:
+        issues.append("blocks on several days")
+    if not checks["reaches_600"]:
+        issues.append(f"{checks['n_shown']} trials")
+    if checks["n_partial_blocks"]:
+        issues.append(f"{checks['n_partial_blocks']} partial block(s)")
+    if checks["n_files_left_out"]:
+        issues.append(f"{checks['n_files_left_out']} file(s) left out")
+    checks["issues"] = "; ".join(issues)
+    checks["notes"] = (f"clock shift of up to {checks['max_clock_shift_min']:.1f} min in {len(shifted)} block(s) (sleep or clock correction)"
+                       if len(shifted) else "")
+    return pd.Series(checks)
+
+
+def session_summary(blocks):
+    """One row per session, in listing order: block counts, prior, the order checks, `issues` and `notes`."""
+    first = blocks.drop_duplicates("session_id").set_index("session_id")[["subject_id", "group", "medication"]]
+    checks = pd.DataFrame({session_id: _session_checks(session) for session_id, session in blocks.groupby("session_id", sort=False)}).T
+    return first.join(checks.infer_objects()).reset_index()
+
+
+def compile_sessions(blocks, decoded, summary, dataset):
+    """Save each session with trial blocks as one trial table: used practice then trial blocks, each in time order.
+
+    The table has `SESSION_COLUMNS` plus `BLOCK_COLUMNS`. `prior` is the session's prior (the one most complete
+    trial blocks imply); `prior_color` and `prior_direction` are filled only when it is a single colour.
+    """
+    colours, sides = {"g": "green", "r": "red"}, {"r": "right", "l": "left"}
+    for session in summary[summary.n_trial_blocks > 0].itertuples():
+        parts = []
+        for phase in ("practice", "trial"):
+            phase_blocks = blocks[(blocks.session_id == session.session_id) & blocks.use & (blocks.phase == phase)].sort_values("filename_time")
+            for number, block in enumerate(phase_blocks.itertuples(), start=1):
+                trials = decoded[block.file].copy()
+                trials["phase"], trials["block"], trials["block_file"] = phase, number, block.file
+                trials["trial_in_block"] = np.arange(1, len(trials) + 1)
+                trials["block_prior"] = block.block_prior
+                parts.append(trials)
+        trials = pd.concat(parts, ignore_index=True)
+        single = session.session_prior in SINGLE_PRIORS
+        trials["prior"] = session.session_prior
+        trials["prior_color"] = colours[session.session_prior[0]] if single else None
+        trials["prior_direction"] = sides[session.session_prior[1]] if single else None
+        trials["session_id"], trials["subject_id"] = session.session_id, session.subject_id
+        trials["group"], trials["medication"] = session.group, session.medication
+        trials["session_filename"] = f"{session.session_id}.parquet"
+        catalog.save(trials[SESSION_COLUMNS + BLOCK_COLUMNS], dataset, filename=f"{session.session_id}.parquet")
+
+
+# --------------------------------------------------------------------------------------------- #
+# Reporting
+# --------------------------------------------------------------------------------------------- #
+
+PRACTICE_COLOUR, TRIAL_COLOUR = "#eb6834", "#2a78d6"  # categorical slots 2 and 1 of the reference palette
+
+
+def plot_timeline(blocks, summary, title):
+    """Each used block at its wall-clock time (header time minus its recorded duration), in minutes from the session's
+    first trial block. Trial blocks carry their implied prior; hatched blocks are partial."""
+    used = blocks[blocks.use].copy()
+    used["start"] = used.header_time - pd.to_timedelta(used.duration_s, unit="s")
+    t0 = used[used.phase == "trial"].groupby("session_id").start.min()
+    used["start_min"] = (used.start - used.session_id.map(t0)).dt.total_seconds() / 60
+    used["length_min"] = used.duration_s / 60
+    order = summary.session_id.tolist()
+
+    fig, ax = plt.subplots(figsize=(11, 0.28 * len(order) + 1))
+    for y, session_id in enumerate(order):
+        for block in used[used.session_id == session_id].itertuples():
+            colour = PRACTICE_COLOUR if block.phase == "practice" else TRIAL_COLOUR
+            ax.broken_barh([(block.start_min, block.length_min)], (y - 0.35, 0.7), facecolor=colour, edgecolor="white",
+                           linewidth=1, hatch="////" if block.partial else None)
+            if block.phase == "trial" and block.length_min > 3:
+                ax.text(block.start_min + block.length_min / 2, y, block.block_prior, ha="center", va="center", fontsize=6.5, color="white")
+    ax.axvline(0, color="0.6", linewidth=0.8, zorder=0)
+    ax.set_yticks(range(len(order)), order, fontsize=8)
+    ax.invert_yaxis()
+    ax.set_xlabel("minutes from the first trial block", fontsize=9)
+    ax.tick_params(axis="x", labelsize=8)
+    ax.tick_params(axis="y", length=0)
+    ax.spines[["top", "right", "left"]].set_visible(False)
+    ax.grid(axis="x", color="0.9", linewidth=0.6)
+    ax.set_axisbelow(True)
+    ax.legend(handles=[plt.Rectangle((0, 0), 1, 1, color=PRACTICE_COLOUR), plt.Rectangle((0, 0), 1, 1, color=TRIAL_COLOUR),
+                       plt.Rectangle((0, 0), 1, 1, facecolor=TRIAL_COLOUR, hatch="////", edgecolor="white")],
+              labels=["practice", "trial", "partial trial block"], loc="lower right", frameon=False, fontsize=8)
+    ax.set_title(title, loc="left", fontsize=10)
+    fig.tight_layout()
+    return fig
+
+
+def _names(sessions):
+    return ", ".join(sessions) if len(sessions) else "none"
+
+
+def findings(blocks, summary, runs):
+    """The headline results as sentences, generated from the tables."""
+    s = summary.set_index("session_id")
+    trials = s[s.n_trial_blocks > 0]
+    reasons = blocks.loc[~blocks.use, "excluded_reason"].str.split(" \\(").str[0].value_counts()
+    lines = [f"{len(blocks)} files in {len(s)} sessions; {blocks.use.sum()} used, {(~blocks.use).sum()} left out"
+             + (" (" + ", ".join(f"{n} {reason}" for reason, n in reasons.items()) + ")." if len(reasons) else ".")]
+    for run in runs.itertuples():
+        when = f"{run.saved_from:%Y-%m-%d %H:%M}" + (f"-{run.saved_to:%H:%M}" if run.saved_to > run.saved_from else "")
+        copies = f"; copies of {run.copies_of}" if run.copies_of else ""
+        lines.append(f"{run.n_files} left-out file(s) ({run.reasons}) saved {when}, on the clock of {run.recorded_with}, "
+                     f"filed under {run.filed_under}{copies}.")
+    lines += [
+        f"Sessions without trial blocks: {_names(s.index[s.n_trial_blocks == 0])}.",
+        f"No practice recorded in-session: {_names(trials.index[trials.n_practice_blocks == 0])}.",
+        f"Practice not finished before the first trial block: {_names(trials.index[(trials.n_practice_blocks > 0) & ~trials.practice_before_trial.astype(bool)])}.",
+        f"Blocks out of order or trial blocks overlapping: {_names(trials.index[~trials.block_order_consistent.astype(bool) | trials.trial_blocks_overlap.astype(bool)])}.",
+        f"Blocks on more than one day: {_names(trials.index[~trials.one_day.astype(bool)])}.",
+        "Clock shifts within a session (sleep or clock correction; blocks kept): "
+        + ("; ".join(f"{i} (up to {m:.1f} min)" for i, m in trials.max_clock_shift_min.items() if m > 0) or "none") + ".",
+        "Block priors differ within the session: "
+        + ("; ".join(f"{i} ({b})" for i, b in trials.loc[~trials.prior_consistent.astype(bool), "block_priors"].items()) or "none") + ".",
+        "Design off 75:25 / 50:50 in a complete block: "
+        + ("; ".join(f"{i} ({p})" for i, p in trials.loc[~trials.design_ok.astype(bool), "session_prior"].items()) or "none") + ".",
+        "Partial trial blocks: "
+        + ("; ".join(f"{r.file} ({r.n_shown:.0f} trials)" for r in blocks[blocks.use & blocks.partial].itertuples()) or "none") + ".",
+        f"Under {MIN_SESSION_TRIALS} trials: {_names(trials.index[~trials.reaches_600.astype(bool)])}; "
+        f"range {trials.n_shown.min():.0f}-{trials.n_shown.max():.0f}, median {trials.n_shown.median():.0f}.",
+    ]
+    return lines
