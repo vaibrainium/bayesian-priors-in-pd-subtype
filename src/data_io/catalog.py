@@ -57,6 +57,7 @@ DATASETS = {
     "raw_session_file": Dataset("raw", "{filename}"),  # per-session .mat files (UCLA, Stanford, Case Western)
     "raw_harvard_sessions": Dataset("raw", "harvard_data/{subject_type}"),
     "raw_stanford_sessions": Dataset("raw", "stanford_data"),
+    "raw_case_western_sessions": Dataset("raw", "case_western_data"),
     "raw_perugini_keypress": Dataset("raw", "Perugini_2016/Reports_HC_Exp2_KeyPress"),
     "raw_perugini_eye": Dataset("raw", "Perugini_2016/Reports_HC_Exp2"),
     # compiled: one trial table per session, then the aggregate tables
@@ -69,6 +70,10 @@ DATASETS = {
     "compiled_stanford_session": Dataset("compiled", "stanford/sessions/{filename}", "0.03"),
     "compiled_stanford_blocks": Dataset("compiled", "stanford/blocks.csv", "0.03", read_kwargs={**_CSV_EXACT, "parse_dates": ["filename_time", "header_time"]}, write_kwargs=_CSV_NO_INDEX),
     "compiled_stanford_session_summary": Dataset("compiled", "stanford/session_summary.csv", "0.03", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX),
+    # Case Western: one file per session, compiled as a single block
+    "compiled_case_western_session": Dataset("compiled", "case_western/sessions/{filename}", "0.04"),
+    "compiled_case_western_blocks": Dataset("compiled", "case_western/blocks.csv", "0.04", read_kwargs={**_CSV_EXACT, "parse_dates": ["header_time"]}, write_kwargs=_CSV_NO_INDEX),
+    "compiled_case_western_session_summary": Dataset("compiled", "case_western/session_summary.csv", "0.04", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX),
     "compiled_trials": Dataset("compiled", "aggregate_all_data.csv", "0.10", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX, screened=True),
     "compiled_metadata": Dataset("compiled", "aggregate_all_metadata.csv", "0.10", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX, screened=True),
     # processed trials: every trial, and the valid trials above the reaction-time floor
@@ -363,7 +368,7 @@ def load_trials(kind="valid", min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage
     return trials[trials["subject_id"].isin(keep)].reset_index(drop=True)
 
 
-BLOCK_SITES = ("harvard", "stanford")  # sites compiled from block files (0.02, 0.03)
+BLOCK_SITES = ("harvard", "stanford", "case_western")  # sites compiled with block labels (0.02, 0.03, 0.04; Case Western: one block per session)
 
 
 def load_block_sessions(sites=BLOCK_SITES, session_ids=None):
@@ -379,7 +384,7 @@ def load_block_sessions(sites=BLOCK_SITES, session_ids=None):
             if session_ids is None or file.stem in session_ids:
                 tables.append(read(file).assign(site=site))
     if not tables:
-        raise FileNotFoundError(f"no compiled sessions for {sites} {session_ids or ''}; they are written by 0.02 / 0.03")
+        raise FileNotFoundError(f"no compiled sessions for {sites} {session_ids or ''}; they are written by 0.02 / 0.03 / 0.04")
     return pd.concat(tables, ignore_index=True)
 
 
