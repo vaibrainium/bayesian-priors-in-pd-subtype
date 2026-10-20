@@ -276,7 +276,7 @@ def session_summary(blocks):
     return first.join(checks).reset_index()
 
 
-def compile_sessions(blocks, decoded, summary, dataset):
+def compile_sessions(blocks, decoded, summary, dataset, extra_columns=()):
     """Save each session with trial blocks as one trial table: used practice then trial blocks, each in time order.
 
     The table has `SESSION_COLUMNS` plus `BLOCK_COLUMNS`. `prior` is the session's prior (the one most complete
@@ -285,11 +285,13 @@ def compile_sessions(blocks, decoded, summary, dataset):
     design error and whether it ran the intended design (`block_design_ok`, within the load-time design tolerance),
     whether it implies the session's prior (`block_matches_session_prior`) and whether it is partial, so blocks can be
     selected later with `select_blocks`. Practice blocks are never `block_design_ok` or `block_matches_session_prior`.
+    `extra_columns` are summary columns copied onto every trial (e.g. the Perugini `dataset` and `response_mode`).
     """
     for session in summary[summary.n_trial_blocks > 0].itertuples():
         parts = []
         for phase in ("practice", "trial"):
-            phase_blocks = blocks[(blocks.session_id == session.session_id) & blocks.use & (blocks.phase == phase)].sort_values("filename_time")
+            phase_blocks = blocks[(blocks.session_id == session.session_id) & blocks.use & (blocks.phase == phase)]
+            phase_blocks = phase_blocks.sort_values("filename_time" if "filename_time" in blocks else "clock_start_s")
             for number, block in enumerate(phase_blocks.itertuples(), start=1):
                 trials = decoded[block.file].copy()
                 trials["phase"], trials["block"], trials["block_file"] = phase, number, block.file
@@ -307,7 +309,130 @@ def compile_sessions(blocks, decoded, summary, dataset):
         trials["session_id"], trials["subject_id"] = session.session_id, session.subject_id
         trials["group"], trials["medication"] = session.group, session.medication
         trials["session_filename"] = f"{session.session_id}.parquet"
-        catalog.save(trials[SESSION_COLUMNS + BLOCK_COLUMNS], dataset, filename=f"{session.session_id}.parquet")
+        for column in extra_columns:
+            trials[column] = getattr(session, column)
+        catalog.save(trials[SESSION_COLUMNS + BLOCK_COLUMNS + list(extra_columns)], dataset, filename=f"{session.session_id}.parquet")
+
+
+# --------------------------------------------------------------------------------------------- #
+# Sessions recorded as whole files (Case Western 0.04, UCLA 0.05)
+# --------------------------------------------------------------------------------------------- #
+# Some sites saved each session (and each practice run) as one file, with no per-block files or timestamped names.
+# Such a file is listed like a block (`LISTING_COLUMNS`) and compiled as a single block; what can be checked is the
+# clock (one continuous run, its pauses), the design over the session, and practice ordering on the clock.
+
+PAUSE_S = 20  # a gap between trial starts longer than this is a pause
+STRETCH = 160  # trials per stretch for the design-over-time check (a block's length at the block sites)
+BATCH_SAVE_MIN_FILES, BATCH_SAVE_S = 3, 5  # this many files saved within this many seconds were re-saved together
+
+
+def load_mat(path):
+    """`event`, `time` and `__header__` of a MAT file, whether MATLAB v5 or v7.3 (HDF5)."""
+    try:
+        return scipy.io.loadmat(path)
+    except NotImplementedError:  # v7.3
+        import hdf5storage
+
+        mat = hdf5storage.loadmat(str(path))
+        with open(path, "rb") as handle:
+            header = handle.read(116)  # v7.3 files keep the text header in their first bytes
+        return {"__header__": header, "__v73__": True, "event": np.asarray(mat["event"]), "time": np.asarray(mat["time"])}
+
+
+def read_session_files(listing, root):
+    """Each listed whole-session file's header time, clock range, pauses and validity, and its decoded trials."""
+    rows, decoded = [], {}
+    for entry in listing.to_dict("records"):
+        mat = load_mat(root / entry["path"])
+        event, time = mat["event"], mat["time"]
+        if event.shape[1] == 10:
+            decoded[entry["file"]] = decode_events(event, time)
+        starts = time[:, 0] / 1000
+        gaps = np.diff(starts)
+        pauses = gaps[gaps > PAUSE_S]
+        rows.append({
+            **entry,
+            "header_time": header_time(mat),
+            "mat_version": "7.3" if mat.get("__v73__") else "5",
+            "n_rows": event.shape[0],
+            "n_cols": event.shape[1],
+            "clock_start_s": starts[0],
+            "clock_end_s": time[time > 0].max() / 1000,
+            "clock_backwards": int((gaps < 0).sum()),
+            "n_pauses": len(pauses),
+            "longest_pause_min": pauses.max() / 60 if len(pauses) else 0.0,
+            "valid_pct": 100 * decoded[entry["file"]].is_valid.mean() if entry["file"] in decoded else np.nan,
+            "content_md5": hashlib.md5(event.tobytes() + time.tobytes()).hexdigest(),
+        })
+    blocks = pd.DataFrame(rows)
+    blocks["duration_min"] = (blocks.clock_end_s - blocks.clock_start_s) / 60
+    blocks["use"] = blocks.n_cols == 10
+    return blocks, decoded
+
+
+def batch_saves(header_times):
+    """True for files whose header falls in a cluster of `BATCH_SAVE_MIN_FILES` or more saved within `BATCH_SAVE_S`
+    of each other: they were re-saved together, so the header dates the batch, not the recording."""
+    ordered = header_times.sort_values()
+    cluster = (ordered.diff().dt.total_seconds() > BATCH_SAVE_S).cumsum()
+    return (cluster.map(cluster.value_counts()) >= BATCH_SAVE_MIN_FILES).reindex(header_times.index)
+
+
+def stretch_priors(trials, size=STRETCH):
+    """The prior implied by each consecutive stretch of `size` colour-shown trials (the last only if half full)."""
+    shown = trials.dropna(subset=["color", "target"]).reset_index(drop=True)
+    priors = []
+    for start in range(0, len(shown), size):
+        part = shown.iloc[start:start + size]
+        if len(part) >= size // 2:
+            right = part.target.eq("right").groupby(part.color).mean() * 100
+            priors.append(implied_prior(right.get("green", 50), right.get("red", 50)))
+    return priors
+
+
+def session_file_summary(blocks):
+    """One row per whole-file session (exactly one trial file each, any practice files), in listing order."""
+    rows = []
+    for session_id, session in blocks.groupby("session_id", sort=False):
+        trial, practice = session[session.phase == "trial"], session[session.phase == "practice"]
+        if len(trial) != 1:
+            raise ValueError(f"{session_id}: {len(trial)} trial files, expected one")
+        t = trial.iloc[0]
+        stretches = t.stretch_priors.split(" | ") if t.stretch_priors else []
+        row = {
+            "session_id": session_id, "subject_id": t.subject_id, "group": t.group, "medication": t.medication,
+            "header_time": t.header_time, "header_is_batch_save": bool(t.header_is_batch_save), "duration_min": t.duration_min,
+            "n_pauses": t.n_pauses, "longest_pause_min": t.longest_pause_min, "clock_backwards": t.clock_backwards,
+            "n_trials": t.n_rows, "n_shown": t.n_shown, "valid_pct": t.valid_pct, "session_prior": t.block_prior,
+            "stretch_priors": " | ".join(stretches), "prior_consistent": len(set(stretches)) <= 1,
+            "max_design_error": t.design_error, "design_ok": t.design_error <= DESIGN_TOLERANCE,
+            "n_trial_blocks": 1, "n_practice_blocks": len(practice),
+            "practice_before_trial": bool(practice.clock_end_s.max() <= t.clock_start_s) if len(practice) else np.nan,
+            "practice_to_trial_min": (t.clock_start_s - practice.clock_end_s.max()) / 60 if len(practice) else np.nan,
+            "reaches_600": t.n_shown >= MIN_SESSION_TRIALS,
+        }
+        issues = []
+        if row["clock_backwards"]:
+            issues.append(f"clock runs backwards {row['clock_backwards']} time(s)")
+        if not row["prior_consistent"]:
+            issues.append(f"prior changes ({row['stretch_priors']})")
+        if not row["design_ok"]:
+            issues.append(f"design off 75:25 / 50:50 (error {row['max_design_error']:.2f})")
+        if not len(practice):
+            issues.append("no practice file")
+        elif not row["practice_before_trial"]:
+            issues.append("practice not before trial on the clock")
+        if not row["reaches_600"]:
+            issues.append(f"{row['n_shown']:.0f} trials")
+        row["issues"] = "; ".join(issues)
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def add_stretch_priors(blocks, decoded):
+    """Add `stretch_priors`: each file's stretch priors, joined with " | "."""
+    blocks["stretch_priors"] = blocks.file.map(lambda f: " | ".join(stretch_priors(decoded[f])) if f in decoded else "")
+    return blocks
 
 
 def prior_parts(prior):
