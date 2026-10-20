@@ -180,7 +180,7 @@ def write(obj, file, **kwargs):
         hdf5storage.savemat(file.as_posix(), obj, **{"format": "7.3", **kwargs})
     elif suffix == ".json":
         file.write_text(json.dumps(obj, indent=2, **kwargs) + "\n")
-    elif suffix in (".md", ".txt"):
+    elif suffix in (".md", ".txt", ".html"):
         file.write_text(obj)
     else:
         raise ValueError(f"no writer for {file.suffix} files ({file})")

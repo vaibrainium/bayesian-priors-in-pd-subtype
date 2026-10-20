@@ -20,7 +20,8 @@ ms). Psychometric functions plot P(choose right) against signed coherence (posit
 with the 4-parameter logistic of `src.utils.pmf_utils`.
 
 Writes to outputs/subject_profiles/: profiles.csv (one row per subject), psychometrics.csv (one row per subject x
-session x condition x colour, with the fitted parameters) and a figure per subject (<subject>.png / .pdf).
+session x condition x colour, with the fitted parameters), a figure per subject (<subject>.png / .pdf) and report.html,
+an interactive page with every subject (all trial blocks pooled per session, prior conditions on expanding).
 
     .venv/bin/python -m scripts.pipeline.subject_profiles [SUBJECT ...]
 """
@@ -35,6 +36,8 @@ from config import main_config
 from src.data_io import catalog
 from src.utils.classification import subtype_label, tremor_bradykinesia_ratio
 from src.utils.pmf_utils import fit_psychometric_function
+
+from scripts.pipeline.subject_report import write_report
 
 OUT = "subject_profiles"
 SITE_NAMES = {"harvard": "Harvard", "stanford": "Stanford", "case_western": "Case Western", "ucla": "UCLA"}
@@ -178,6 +181,69 @@ def subject_rows(subject, trials):
     return rows
 
 
+# --------------------------------------------------------------------------------------------- #
+# Report data (report.html)
+# --------------------------------------------------------------------------------------------- #
+
+
+def plain(value):
+    """A JSON-ready scalar: numpy types to Python, NaN to None."""
+    if value is None or (isinstance(value, float | np.floating) and np.isnan(value)):
+        return None
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
+def colour_data(valid, condition):
+    """Per colour: points [signed coherence, P(right), n], logit_4 parameters (or None) and the colour's role."""
+    out = {}
+    for colour in ("green", "red"):
+        c = valid[valid.color == colour]
+        if c.empty:
+            continue
+        points, fit = psychometric(c)
+        out[colour] = {"points": [[plain(x), round(float(y), 4), int(n)] for x, y, n in points.itertuples(index=False)],
+                       "fit": {k: float(v) for k, v in fit.coefs_.items()} if fit is not None else None,
+                       "role": colour_role(condition, colour) if condition else ""}
+    return out
+
+
+def practice_data(practice):
+    if practice.empty:
+        return None
+    valid = analysable(practice)
+    entry = {"n": len(valid), "blocks": [int(b) for b in sorted(practice.block.unique())]}
+    if set(practice.coherence.dropna().unique()) <= {100}:
+        entry["kind"] = "accuracy"
+        entry["colours"] = {colour: {"acc": float(g.outcome.mean()), "n": int(len(g))} for colour, g in valid.groupby("color")}
+    else:
+        entry["kind"] = "psych"
+        entry["colours"] = colour_data(valid, None)
+    return entry
+
+
+def report_entry(subject, trials, profile):
+    """One subject for report.html: the profile and, per session, practice, all trial blocks pooled and each condition."""
+    sessions = []
+    for session_id, session in trials.groupby("session_id", sort=False):
+        trial = session[session.phase == "trial"]
+        groups = [(prior, part) for phase, prior, part in conditions(session) if phase == "trial"]
+        pooled = analysable(trial)
+        sessions.append({
+            "id": session_id,
+            "label": session_label(session_id, session.medication.iloc[0]),
+            "practice": practice_data(session[session.phase == "practice"]),
+            "all": {"blocks": [int(b) for b in sorted(trial.block.unique())], "priors": [g[0] for g in groups], "n": len(pooled),
+                    "colours": colour_data(pooled, groups[0][0] if len(groups) == 1 else None)},
+            "conditions": [{"prior": prior, "describe": describe_prior(prior), "blocks": [int(b) for b in sorted(part.block.unique())],
+                            "n": len(analysable(part)), "colours": colour_data(analysable(part), prior)} for prior, part in groups],
+        })
+    keys = ["site", "group", "subtype", "subtype_note", "tremor_bradykinesia_ratio", "off_first_metadata", "off_first_metadata_note",
+            "off_first_recorded", "off_first_recorded_note", "off_first_agree"]
+    return {"id": subject, **{k: plain(profile.get(k)) for k in keys}, "sessions": sessions}
+
+
 def draw_psychometric(ax, valid, title, colour_roles):
     for colour, style in COLOUR_STYLE.items():
         c = valid[valid.color == colour]
@@ -277,7 +343,7 @@ def main(only=None):
     summaries = {site: catalog.load(f"compiled_{site}_session_summary") for site in catalog.BLOCK_SITES}
     starts = pd.concat([session_order(catalog.load(f"compiled_{site}_blocks")) for site in ("harvard", "stanford")])
 
-    profiles, psych_rows = [], []
+    profiles, psych_rows, report = [], [], []
     for subject, subject_trials in trials.groupby("subject_id", sort=False):
         if only and subject not in only:
             continue
@@ -304,12 +370,15 @@ def main(only=None):
             profile[f"{key}_conditions"] = " | ".join(f"{r.condition} (blocks {r.blocks})" for r in trial.itertuples())
         profiles.append(profile)
 
+        report.append(report_entry(subject, subject_trials, profile))
         fig = subject_figure(subject, subject_trials, profile)
         catalog.save_figure(fig, f"{OUT}/{subject}")
         plt.close(fig)
 
     catalog.save_table(pd.DataFrame(profiles), f"{OUT}/profiles.csv", index=False)
     catalog.save_table(pd.DataFrame(psych_rows), f"{OUT}/psychometrics.csv", index=False)
+    if not only:
+        write_report(report, f"{OUT}/report.html", min_rt_ms=MIN_RT_MS)
 
 
 if __name__ == "__main__":
