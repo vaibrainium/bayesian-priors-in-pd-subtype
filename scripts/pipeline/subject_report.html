@@ -1,3 +1,7 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Subject Psychometrics</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,6 +39,7 @@
   --green: #2a9a2a; --red: #e66767; color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }  /* filtered-out cards and the idle tooltip; beats .subject { display: grid } */
 body {
   background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.45;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
