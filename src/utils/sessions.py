@@ -89,6 +89,54 @@ def decode_events(event, time):
     return df
 
 
+def decode_perugini_keypress(xyz):
+    """Trial table from a Perugini (2016) key-press `*_TrialByTrial_*.mat` `xyz` matrix (one row per trial).
+
+    Columns: 1 outcome (5510 correct, 5007 no response), 2 coherence, 3 target, 4 colour, 5 response (5006 chose the
+    distractor; 0 / 5005 / 5008 invalid), 6 reaction time (ms). Decoded as notebook 0.01 always has.
+    """
+    data = np.asarray(xyz).astype(int)
+    df = pd.DataFrame(
+        {
+            "color": np.select([data[:, 3] == 6101, data[:, 3] == 6102], ["green", "red"], default=None),
+            "coherence": np.select([data[:, 1] == 4100, data[:, 1] == 4101, data[:, 1] == 4102, data[:, 1] == 4103], [100, 35, 13, 0], default=np.nan),
+            "target": np.select([data[:, 2] == 4000, data[:, 2] == 4001], ["left", "right"], default=None),
+        }
+    )
+    invalid = (data[:, 0] == 5007) | (data[:, 4] == 0) | (data[:, 4] == 5005) | (data[:, 4] == 5008)
+    df["is_valid"] = ~invalid
+    df["outcome"] = np.nan
+    df.loc[data[:, 0] == 5510, "outcome"] = 1
+    df.loc[data[:, 4] == 5006, "outcome"] = 0
+    df["choice"] = df.apply(determine_choice, axis=1)
+    df["reaction_time"] = data[:, 5]
+    return df
+
+
+def decode_perugini_eye(report):
+    """Trial table from a Perugini (2016) eye-movement report (`*_rprt1_*.xlsx`, read with its header row).
+
+    One column per event class: 2-3 target, 4-7 coherence, 8 chose the distractor (5006), 9 correct (5510), 10-11
+    colour, 12 reaction time. A trial without an outcome is invalid. Decoded as notebook 0.01 always has.
+    """
+    data = report.copy()
+    data.columns = range(data.shape[1])
+    df = pd.DataFrame(
+        {
+            "color": np.select([data[9] == 6101, data[10] == 6102], ["green", "red"], default=None),
+            "coherence": np.select([data[3].isin(["1:4100", 4100]), data[4] == 4101, data[5] == 4102, data[6] == 4103], [100, 35, 13, 0], default=np.nan),
+            "target": np.select([data[1] == 4000, data[2] == 4001], ["left", "right"], default=None),
+        }
+    )
+    df["outcome"] = np.nan
+    df.loc[(data[7] == 5006).to_numpy(), "outcome"] = 0
+    df.loc[(data[8] == 5510).to_numpy(), "outcome"] = 1
+    df["is_valid"] = ~df["outcome"].isna()
+    df["choice"] = df.apply(determine_choice, axis=1)
+    df["reaction_time"] = data[11].to_numpy()
+    return df[["color", "coherence", "target", "is_valid", "outcome", "choice", "reaction_time"]]
+
+
 def combine_fragments(fragments):
     """One session's `event`/`time` from the Harvard trial fragments, in file order.
 

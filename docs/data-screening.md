@@ -198,7 +198,13 @@ accuracy screen.
   `off_med_first` flags on its two rows.
 - **UCLA no-prior blocks.** The 8 UCLA patients with "eq" files (CG, COH, DP, FUR, LBR, MAR, MBY, SMI) ran a no-prior
   block, both colours 50:50, immediately before each biased block on the same day (raw clock times). The processed
-  data drop these blocks.
+  data drop these blocks. From 2026-10-20 notebook 0.05 compiles each eq file as its session's practice block (it
+  ends 0.9–3.9 min before the session on the clock), and the six `explicit/` OFF sessions as separate sessions
+  (`<patient>_off_explicit`).
+- **UCLA raw changes (2026-10-20).** `ucla_data/tremor-dominant/Trem_DCAM_OFFmeds_rr.mat` was restored from
+  `raw_backup_20261019/DCAM_OFFmeds_rr.mat`: it had dropped out in the 2026-10-19 reorganisation, and the earlier
+  pipeline used it. `ucla_data/explicit/Brady_SGA_OFFmeds_practice.mat`, a byte-identical copy of Case Western's
+  `practice/Brady_SGA_OFFmedspractice.mat` (SGA is a Case Western patient), was removed; it remains in the backup.
 - **Plot of the Harvard patients.** `outputs/audit/harvard_pd_psychometrics.png` (script
   `scripts/audit/a20_harvard_psychometrics.py`) shows colour-specific psychometric functions for every Harvard
   patient, OFF and ON.

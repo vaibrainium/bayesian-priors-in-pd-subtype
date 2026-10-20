@@ -58,8 +58,10 @@ DATASETS = {
     "raw_harvard_sessions": Dataset("raw", "harvard_data/{subject_type}"),
     "raw_stanford_sessions": Dataset("raw", "stanford_data"),
     "raw_case_western_sessions": Dataset("raw", "case_western_data"),
-    "raw_perugini_keypress": Dataset("raw", "Perugini_2016/Reports_HC_Exp2_KeyPress"),
-    "raw_perugini_eye": Dataset("raw", "Perugini_2016/Reports_HC_Exp2"),
+    "raw_ucla_sessions": Dataset("raw", "ucla_data"),
+    "raw_perugini": Dataset("raw", "ucla_data/Perugini_2016"),
+    "raw_perugini_keypress": Dataset("raw", "ucla_data/Perugini_2016/Reports_HC_Exp2_KeyPress"),
+    "raw_perugini_eye": Dataset("raw", "ucla_data/Perugini_2016/Reports_HC_Exp2"),
     # compiled: one trial table per session, then the aggregate tables
     "compiled_session": Dataset("compiled", "sessions/{filename}", "0.00 / 0.01"),
     # Harvard, compiled from the raw block files with timing and design checks
@@ -74,6 +76,13 @@ DATASETS = {
     "compiled_case_western_session": Dataset("compiled", "case_western/sessions/{filename}", "0.04"),
     "compiled_case_western_blocks": Dataset("compiled", "case_western/blocks.csv", "0.04", read_kwargs={**_CSV_EXACT, "parse_dates": ["header_time"]}, write_kwargs=_CSV_NO_INDEX),
     "compiled_case_western_session_summary": Dataset("compiled", "case_western/session_summary.csv", "0.04", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX),
+    # UCLA: one file per session (equal-prior warm-up file as practice), regular and explicit sessions
+    "compiled_ucla_session": Dataset("compiled", "ucla/sessions/{filename}", "0.05"),
+    "compiled_ucla_blocks": Dataset("compiled", "ucla/blocks.csv", "0.05", read_kwargs={**_CSV_EXACT, "parse_dates": ["header_time"]}, write_kwargs=_CSV_NO_INDEX),
+    "compiled_ucla_session_summary": Dataset("compiled", "ucla/session_summary.csv", "0.05", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX),
+    # Perugini et al. (2016) healthy controls, kept apart from the study data (not read by load_block_sessions)
+    "compiled_perugini_session": Dataset("compiled", "ucla/perugini/sessions/{filename}", "0.05"),
+    "compiled_perugini_session_summary": Dataset("compiled", "ucla/perugini/session_summary.csv", "0.05", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX),
     "compiled_trials": Dataset("compiled", "aggregate_all_data.csv", "0.10", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX, screened=True),
     "compiled_metadata": Dataset("compiled", "aggregate_all_metadata.csv", "0.10", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX, screened=True),
     # processed trials: every trial, and the valid trials above the reaction-time floor
@@ -368,7 +377,7 @@ def load_trials(kind="valid", min_easy_accuracy=DEFAULT_MIN_EASY_ACCURACY, stage
     return trials[trials["subject_id"].isin(keep)].reset_index(drop=True)
 
 
-BLOCK_SITES = ("harvard", "stanford", "case_western")  # sites compiled with block labels (0.02, 0.03, 0.04; Case Western: one block per session)
+BLOCK_SITES = ("harvard", "stanford", "case_western", "ucla")  # sites compiled with block labels (0.02-0.05; Case Western and UCLA: one file per block)
 
 
 def load_block_sessions(sites=BLOCK_SITES, session_ids=None):
@@ -384,7 +393,7 @@ def load_block_sessions(sites=BLOCK_SITES, session_ids=None):
             if session_ids is None or file.stem in session_ids:
                 tables.append(read(file).assign(site=site))
     if not tables:
-        raise FileNotFoundError(f"no compiled sessions for {sites} {session_ids or ''}; they are written by 0.02 / 0.03 / 0.04")
+        raise FileNotFoundError(f"no compiled sessions for {sites} {session_ids or ''}; they are written by 0.02-0.05")
     return pd.concat(tables, ignore_index=True)
 
 
