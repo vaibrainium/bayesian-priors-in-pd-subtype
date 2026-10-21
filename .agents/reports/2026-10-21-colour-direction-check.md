@@ -80,3 +80,18 @@ colour role, coherence; compare P(choice toward prior side)).
 - [ ] Get the task code / settings file from each site (how prior_condition maps to displayed colour and to col5).
 - [ ] Ask the Harvard team whether HC3, HC11, HC15 were told anything about colours, or saw another version first.
 - [ ] Compare with notebook 2.31-colour-artifact-checks and the audit's colour-side (k) term.
+
+## Full audit against the user's notebooks (plans/2026-10-21-colour-direction-audit.md)
+- VERIFIED: the user's pre-refactor decoding (notebooks/0.00 at fd4548c: col5 6101 green / 6102 red, col3 4000 left /
+  4001 right, choice = target if correct else opposite, prior = colour with > 60% of valid targets on one side) is
+  identical to src/utils/sessions.decode_events / get_prior_condition used by the new compile.
+- VERIFIED: 0.10 does not recode; 0.20 recodes target/choice to 1 = favoured side and color to 1 = prior colour; 2.31
+  and the GLM-HMM preparation read those recoded columns. Nothing reinterprets colour or direction elsewhere.
+- VERIFIED: report.html matches the user's processed data point for point: 1382 of 1382 psychometric points with equal
+  trial counts give the same P(choose favoured side) as processed/trials/valid_trials.csv (4 points differ in count,
+  Stanford P1 OFF practice). Command: inline python, report JSON vs valid_trials grouped by session, color, signed
+  coherence.
+- VERIFIED: the user's own 0.40 results show the same reversals: processed/metadata/psych_params.csv HC3
+  positive_bias .442 vs equal_bias .808; MAR_ON .419 vs .675 (HC1 .456 vs .391 for comparison).
+- Conclusion: the pattern is in the raw event files as every decoder reads them. If it is wrong, the error is in how
+  the task program logged colour (or target) relative to what was shown, which needs the task code to confirm.
