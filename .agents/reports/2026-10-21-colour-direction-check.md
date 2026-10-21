@@ -49,3 +49,34 @@ colour role, coherence; compare P(choice toward prior side)).
 - [ ] Ask the user which subject/panel looked wrong, to confirm it is this effect and not a display issue.
 - [ ] Check the 2018 task code (UCLA / Case Western) for the colour codes and whether response targets were coloured.
 - [ ] Consider showing, in the report, the 50:50 colour's own bias so the colour-side preference is visible per subject.
+
+## Follow-up (same day): user reports many subjects look reversed (e.g. HC3, gr)
+- VERIFIED: HC3 (Harvard control, gr): design exact in every block (green 75% right, red 50%), but at coherence <= 13%
+  P(right) green/red by block = .33/.79, .33/.69, .55/.75, .78/.78. Practice (100% only) unbiased (.50/.48). The
+  0.20 recoding gives the same: P(choose favoured) 0% coherence = .44 prior colour vs .81 50:50 colour.
+- VERIFIED: the lab's own decoder (raw/stanford_data/Brady_P1_OFFmeds_rr/practice/A2_Examples_script.m, 2018) reads
+  col3 4000 = left / 4001 = right, col5 6101 = green / 6102 = red, col9 5510 = correct, exactly as the pipeline does.
+- VERIFIED: no response-side code exists. Col10 (5050) appears on every correct trial and no wrong one (a reward
+  code). Choice is always inferred from col3 + correctness, so psychometric steepness cannot validate col3.
+- VERIFIED: row misalignment is not it. Re-coding colour from rows -2..+2 within a block: the same-row colour gives
+  the largest correct-direction prior effect at Harvard, Stanford and UCLA (Case Western: previous row larger,
+  consistent with choice history).
+- VERIFIED: colour-specific prior effect is weak compared with Perugini (2016) controls. Hard trials, P(favoured)
+  prior vs 50:50 colour: Perugini .650 vs .523 (shift .126, 9/12 positive); Harvard HC .581 vs .552 (.029, 57%);
+  Harvard PD .087 (80%); Stanford .077 (71%); UCLA .050 (68%); Case Western .046 (50%). Correctly designed blocks only.
+- VERIFIED: 125 sessions; 38 significantly in the right direction, 10 significantly reversed (z < -1.96; ~3
+  expected by chance): MAR_on, HC3, HC11, P6_off, SNO_on, SGA_on, HC15, DP_off, CG_off, COH_off. In all 10 the
+  behaviour matches the other colour carrying the prior in the same direction (equivalently, the same colour in the
+  opposite direction). Red-minus-green P(right) on hard trials overall +.019 (p = .19; UCLA +.063, Case Western +.074,
+  Harvard -.012, Stanford -.020).
+- NOT SUPPORTED: carry-over of the first session's prior into the second (31 patients with known order and opposing
+  priors): own prior first .078 (p=.002), second .056 (p=.07); second-minus-first lean difference +.022, Wilcoxon p=.57
+  (this design confounds carry-over with the own-prior effect, so it is a weak test). Single-session controls (HC3,
+  HC11, HC15) reverse too, which carry-over cannot explain.
+- SUSPECTED (not testable from the logs): a mismatch between the colour displayed and the colour logged in some
+  sessions, or a pre-existing colour-side association in some subjects. The task (presentation) code is needed.
+
+### Next steps
+- [ ] Get the task code / settings file from each site (how prior_condition maps to displayed colour and to col5).
+- [ ] Ask the Harvard team whether HC3, HC11, HC15 were told anything about colours, or saw another version first.
+- [ ] Compare with notebook 2.31-colour-artifact-checks and the audit's colour-side (k) term.

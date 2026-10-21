@@ -10,10 +10,13 @@ interactive report in /mnt/pd-data/artifacts/subject_profiles/ (scripts/pipeline
 - none
 
 ## Recent reports (newest first, keep about 10)
-- reports/2026-10-21-colour-direction-check.md : plot colour/direction coding matches the processed pipeline exactly;
-  UCLA/Case Western show a red->right / green->left association even without a prior.
+- reports/2026-10-21-colour-direction-check.md : decoding matches the pipeline and the lab's 2018 decoder; but the
+  colour-specific prior effect is weak (shift .03-.09 vs .13 in Perugini 2016) and 10/125 sessions are significantly
+  reversed, all as if the prior sat on the other colour. Needs the task code; not a decoding bug.
 
 ## Known issues
+- Colour-specific prior effect weak and reversed in 10/125 sessions (see reports/2026-10-21-colour-direction-check.md);
+  cause unknown pending task code.
 - Downstream pipeline (0.10 -> 0.20 -> analyses) still expects the old compiled layout; not yet switched to
   compiled/<site>/ (see compiled/README.md).
 - BEHAVIOR.min_rt = 0.1 is in seconds but reaction times are in ms throughout, so the pipeline's RT floor is 0.1 ms
