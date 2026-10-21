@@ -82,7 +82,8 @@ DATASETS = {
     "compiled_ucla_session_summary": Dataset("compiled", "ucla/session_summary.csv", "0.05", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX),
     "compiled_readme": Dataset("compiled", "README.md", "scripts/pipeline/write_compiled_readme.py"),
     "artifacts_readme": Dataset("artifacts", "README.md", "scripts/pipeline/write_compiled_readme.py"),
-    # Perugini et al. (2016) healthy controls, kept apart from the study data (not read by load_block_sessions)
+    # Perugini et al. (2016) eye-movement controls, kept apart and unused (not read by load_block_sessions);
+    # the key-press controls are UCLA healthy controls in compiled_ucla_session
     "compiled_perugini_session": Dataset("compiled", "ucla/perugini/sessions/{filename}", "0.05"),
     "compiled_perugini_session_summary": Dataset("compiled", "ucla/perugini/session_summary.csv", "0.05", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX),
     "compiled_trials": Dataset("compiled", "aggregate_all_data.csv", "0.10", read_kwargs=_CSV_EXACT, write_kwargs=_CSV_NO_INDEX, screened=True),

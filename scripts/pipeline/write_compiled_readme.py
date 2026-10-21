@@ -32,7 +32,7 @@ def site_counts():
                     f"{len(blocks)} ({int((~blocks.use).sum())} left out) | `{notebook}` |")
     perugini = catalog.load("compiled_perugini_session_summary")
     modes = ", ".join(f"{n} {m.replace('_', ' ')}" for m, n in perugini.response_mode.value_counts().items())
-    rows.append(f"| `ucla/perugini/` | Perugini et al. (2016) | {len(perugini)} ({modes}) | {perugini.subject_id.nunique()} controls | "
+    rows.append(f"| `ucla/perugini/` | Perugini et al. (2016), not used | {len(perugini)} ({modes}) | {perugini.subject_id.nunique()} controls | "
                 f"{len(perugini)} | `{SITES['ucla'][1]}` |")
     return "\n".join(rows)
 
@@ -64,13 +64,13 @@ Each site folder holds
 | `session_summary.csv` | session | block counts, trials, prior, design and order checks, `issues` (and `notes`) |
 | `blocks.csv` | raw file | timestamps, clock checks, design, whether it was used (`use`) and why not (`excluded_reason`) |
 
-`ucla/perugini/` holds `sessions/` and `session_summary.csv` only.
+`ucla/perugini/` (unused eye-movement controls) holds `sessions/` and `session_summary.csv` only.
 
 ## Naming
 
 - **Sessions** are named by subject and medication state only: `P25_off`, `LHO_on`, `HC3` (controls have no
-  medication state). UCLA's explicit-instruction sessions add `_explicit` (`CG_off_explicit`); Perugini sessions are
-  `<subject>_perugini_keypress` / `_eye`.
+  medication state). UCLA's explicit-instruction sessions add `_explicit` (`CG_off_explicit`); the unused Perugini
+  eye-movement sessions are `<subject>_perugini_eye`.
 - **Blocks** are named `<session_id>/<path inside the raw session folder>`, e.g. `P10_off/Practice/221209_102703.mat`.
   At Case Western and UCLA, where a session is one file, they are `<session_id>/trial` and `<session_id>/practice`.
 - Subject codes: Harvard `P25`-`P34` and `HC1`-`HC16`, Stanford `P1`-`P24`, Case Western and UCLA initials.
@@ -88,7 +88,7 @@ Each site folder holds
 | `block_prior`, `block_prior_color`, `block_prior_direction` | the block's own prior |
 | `block_design_error`, `block_design_ok` | departure from 75:25 on the prior colour and 50:50 on the other; within the load-time tolerance (trial blocks only) |
 | `block_matches_session_prior`, `block_partial` | the block shows the session's prior (trial blocks only); fewer than 150 trials shown |
-| `dataset`, `response_mode` | Perugini sessions only: `perugini_2016`; `keypress` / `eye_movement` |
+| `dataset`, `response_mode` | `ucla/perugini/` (eye-movement controls) only; for the UCLA key-press controls they are in `ucla/session_summary.csv` |
 
 ## Reading and selecting blocks
 
@@ -96,11 +96,11 @@ Each site folder holds
 from src.data_io import catalog
 from src.utils.blocks import select_blocks
 
-trials = catalog.load_block_sessions()                       # every site except Perugini, one table, with `site`
+trials = catalog.load_block_sessions()                       # every site (UCLA includes its key-press controls), with `site`
 correct = select_blocks(trials, design_ok=True)              # trial blocks run as 75:25 / 50:50
 other = select_blocks(trials, design_ok=True, matches_session_prior=False, relabel=True)  # a block with a prior of its own
 practice = select_blocks(trials, phase="practice")
-perugini = catalog.load("compiled_perugini_session", filename="AV_perugini_keypress.parquet")
+eye = catalog.load("compiled_perugini_session", filename="CB1_perugini_eye.parquet")   # unused eye-movement control
 ```
 
 `select_blocks` options: `phase` (`"trial"` default, `"practice"`, `None`), `design_ok`, `matches_session_prior`,
@@ -121,8 +121,10 @@ perugini = catalog.load("compiled_perugini_session", filename="AV_perugini_keypr
 - **UCLA** (one file per session). The equal-prior `eq` file run just before a session is its practice block. Six
   explicit-instruction OFF sessions are separate sessions. All file headers are batch re-saves; the sessions ran on
   more than one PC.
-- **Perugini et al. (2016)**: the paper's 12 age-matched healthy controls, from the UCLA folder. Kept apart from the
-  study and not read by `load_block_sessions`.
+- **UCLA controls**: the 10 key-press controls of Perugini et al. (2016) (as notebook 0.01 compiles them), named by
+  subject (`AV`); one trial block each, no practice. `in_paper_set` marks the 8 the paper's analysis used.
+- **Perugini eye-movement controls** (`ucla/perugini/`): 4 controls who responded by eye movement; compiled for
+  completeness, not used (config `INCLUDE_EYE_TRACKING_SESSIONS: false`), not read by `load_block_sessions`.
 
 ## Not here yet
 

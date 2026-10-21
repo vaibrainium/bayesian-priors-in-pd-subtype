@@ -33,5 +33,8 @@ interactive report in /mnt/pd-data/artifacts/subject_profiles/ (scripts/pipeline
   carried over (user request).
 - 2026-10-20: UCLA eq files are practice blocks; UCLA explicit sessions are separate sessions (<id>_off_explicit);
   Perugini 2016 controls compiled apart (compiled/ucla/perugini/), 8 key-press + 4 eye-movement (user decision).
+- 2026-10-21: superseded: UCLA healthy controls = all 10 Perugini key-press controls, as notebook 0.01 compiles them,
+  in compiled/ucla/ (session_id = subject); the 4 eye-movement controls stay in compiled/ucla/perugini/, unused
+  (plans/2026-10-21-ucla-keypress-controls.md).
 - 2026-10-20: shareable reports/figures go to /mnt/pd-data/artifacts/ (user request).
 - 2026-10-21: colour/direction coding checked and kept (reports/2026-10-21-colour-direction-check.md).

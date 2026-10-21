@@ -38,6 +38,7 @@ import scipy.io
 
 from config import main_config
 from src.data_io import catalog
+from src.data_io.paths import writable
 from src.utils.sessions import SESSION_COLUMNS, decode_events, prior_design_error
 
 LISTING_COLUMNS = ["session_id", "subject_id", "group", "medication", "phase", "file", "path"]
@@ -276,7 +277,7 @@ def session_summary(blocks):
     return first.join(checks).reset_index()
 
 
-def compile_sessions(blocks, decoded, summary, dataset, extra_columns=()):
+def compile_sessions(blocks, decoded, summary, dataset, extra_columns=(), prune=True):
     """Save each session with trial blocks as one trial table: used practice then trial blocks, each in time order.
 
     The table has `SESSION_COLUMNS` plus `BLOCK_COLUMNS`. `prior` is the session's prior (the one most complete
@@ -286,7 +287,10 @@ def compile_sessions(blocks, decoded, summary, dataset, extra_columns=()):
     whether it implies the session's prior (`block_matches_session_prior`) and whether it is partial, so blocks can be
     selected later with `select_blocks`. Practice blocks are never `block_design_ok` or `block_matches_session_prior`.
     `extra_columns` are summary columns copied onto every trial (e.g. the Perugini `dataset` and `response_mode`).
+    With `prune`, session files left in the dataset's folder by an earlier run and not written now are removed, so the
+    folder always matches the summary.
     """
+    written = set()
     for session in summary[summary.n_trial_blocks > 0].itertuples():
         parts = []
         for phase in ("practice", "trial"):
@@ -312,6 +316,12 @@ def compile_sessions(blocks, decoded, summary, dataset, extra_columns=()):
         for column in extra_columns:
             trials[column] = getattr(session, column)
         catalog.save(trials[SESSION_COLUMNS + BLOCK_COLUMNS + list(extra_columns)], dataset, filename=f"{session.session_id}.parquet")
+        written.add(f"{session.session_id}.parquet")
+    if prune:
+        for stale in sorted(catalog.path(dataset, filename="x.parquet").parent.glob("*.parquet")):
+            if stale.name not in written:
+                writable(stale).unlink()
+                print(f"removed stale {dataset} file {stale.name}")
 
 
 # --------------------------------------------------------------------------------------------- #
