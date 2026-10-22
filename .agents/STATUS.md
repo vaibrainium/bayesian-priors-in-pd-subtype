@@ -7,7 +7,7 @@ Rebuilding the data pipeline from raw: every site compiled from raw files with c
 interactive report in /mnt/pd-data/artifacts/subject_profiles/ (scripts/pipeline/subject_profiles.py).
 
 ## Active plans
-- none
+- plans/2026-10-22-switch-pipeline-to-new-compiled.md : switch 0.10/0.20 to the new compiled data; awaiting approval
 
 ## Recent reports (newest first, keep about 10)
 - reports/2026-10-21-colour-direction-check.md : decoding matches the pipeline and the lab's 2018 decoder; but the
