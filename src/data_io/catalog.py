@@ -19,8 +19,8 @@ stage needs no re-run of the pipeline.
 
 import json
 import pickle
-from functools import lru_cache
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 import numpy as np
 import pandas as pd
@@ -241,10 +241,7 @@ def _join_stage(metadata, stage, name):
         raise ValueError(f"{name}: {METADATA_KEY} is not unique")
     missing = set(metadata[METADATA_KEY]) - set(stage[METADATA_KEY])
     if missing:
-        raise ValueError(
-            f"{name} has no rows for {len(missing)} sessions: {sorted(missing)}. Re-run {DATASETS[name].produced_by}, "
-            "or raise min_easy_accuracy if that stage was only run for the sessions that pass it."
-        )
+        raise ValueError(f"{name} has no rows for {len(missing)} sessions: {sorted(missing)}. Re-run {DATASETS[name].produced_by}, or raise min_easy_accuracy if that stage was only run for the sessions that pass it.")
     aligned = stage.set_index(METADATA_KEY).reindex(metadata[METADATA_KEY])
     for column in aligned.columns:
         metadata[column] = aligned[column].to_numpy()
